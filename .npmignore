@@ -1,8 +1,11 @@
 src
+README.md
 
 tests
 
 tsconfig.json
+tsconfig.dev.json
+.eslintrc.js
 
 .DS_Store
 
