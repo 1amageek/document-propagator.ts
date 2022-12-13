@@ -27,7 +27,8 @@ export class PropagateFunctionBuilder {
   ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
     let builder = options?.regions != null ? functions.region(...options.regions) : functions
     builder = options?.runtimeOptions != null ? builder.runWith(options.runtimeOptions) : builder
-    return functions.firestore
+    return builder
+      .firestore
       .document(triggerResource)
       .onWrite((change, context) => {
         const dependencyTargets: DependencyTarget[] = dependencyTargetResources.map(target => {

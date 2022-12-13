@@ -23,10 +23,9 @@ export class JoinFunctionBuilder {
     dependencies: JoinDependencyResource[],
     callback: (snapshot: DocumentSnapshot<DocumentData>) => Data
   ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
-    // let builder = options?.regions != null ? functions.region(...options.regions) : functions
-    // builder = options?.runtimeOptions != null ? builder.runWith(options.runtimeOptions) : builder
-    // return this.functionBuilder
-    return functions
+    let builder = options?.regions != null ? functions.region(...options.regions) : functions
+    builder = options?.runtimeOptions != null ? builder.runWith(options.runtimeOptions) : builder
+    return builder
       .firestore
       .document(triggerResource)
       .onWrite((change, context) => {
