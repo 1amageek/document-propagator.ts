@@ -53,6 +53,7 @@ const onCreate = async <Data>(
   const documentData = {
     ...data,
     ...results,
+    createTime: snapshot.updateTime!.toDate(),
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
   }
