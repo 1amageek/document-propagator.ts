@@ -16,7 +16,7 @@ export type JoinQuery = {
  * @param resources Data required for join
  * @returns Returns a joinQuery. This is used by resolve.
  */
-export declare const Join: (from: string, to: string, resources: JoinDependencyResource[]) => JoinQuery;
+export declare const join: (from: string, to: string, resources: JoinDependencyResource[]) => JoinQuery;
 /**
  *
  * @param documentID DocumentID of source data

@@ -42,7 +42,7 @@ export const DepedencyResource = (documentID: string, field: Field, resource: st
  * @param callback If you need to process the acquired data, you can change it here.
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export const resolve = <Data extends { [key: string]: any }>(firestore: Firestore, queries: JoinQuery[], callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
+export const resolve = <Data extends { [key: string]: any }>(firestore: Firestore, queries: JoinQuery[] = [], callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
   const builder = new JoinFunctionBuilder(firestore)
   const defaultCallback = (snapshot: DocumentSnapshot<DocumentData>) => {
     return snapshot.data() as Data
