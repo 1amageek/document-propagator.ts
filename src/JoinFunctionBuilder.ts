@@ -22,7 +22,7 @@ export class JoinFunctionBuilder {
     targetResource: string,
     dependencies: JoinDependencyResource[],
     callback: (snapshot: DocumentSnapshot<DocumentData>) => Data
-  ): any {
+  ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
     // let builder = options?.regions != null ? functions.region(...options.regions) : functions
     // builder = options?.runtimeOptions != null ? builder.runWith(options.runtimeOptions) : builder
     // return this.functionBuilder

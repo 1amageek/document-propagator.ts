@@ -1,3 +1,4 @@
+import * as functions from "firebase-functions/v1"
 import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, Target } from "./helper"
 import { PropagateFunctionBuilder } from "./PropagateFunctionBuilder"
 import { JoinFunctionBuilder } from "./JoinFunctionBuilder"
@@ -66,25 +67,25 @@ export const propagate = (firestore: Firestore, targets: Target[]) => {
     })
   })
   const dependencies = groupBy(resources, (resource) => resource.depedencyResource)
-  const functionBuilder = new PropagateFunctionBuilder(firestore)
+  const builder = new PropagateFunctionBuilder(firestore)
 
-  let _functions = {} as any
-  Object.keys(dependencies).forEach(triggerResource => {
-    const functionName = getCollectionIDs(triggerResource).join("-")
+  const data: DocumentFunction[] = Object.keys(dependencies).map(triggerResource => {
+    const collectionIDs = getCollectionIDs(triggerResource)
     const depedencyResources: DependencyResource[] = dependencies[triggerResource]!.map(v => {
       return {
         field: v.field,
         resource: v.targetResource
       }
     })
-    _functions[functionName] = functionBuilder.build(null, triggerResource, depedencyResources)
+    const onWrite = builder.build(null, triggerResource, depedencyResources)
+    return { name: [...collectionIDs], on: onWrite }
   })
-  return _functions
+  return convert(data)
 }
 
 type DocumentFunction = {
   name: string[]
-  on: () => void
+  on: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>
 }
 
 const convert = (arr: DocumentFunction[]): { [key: string]: any } => {
