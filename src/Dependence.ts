@@ -12,7 +12,7 @@ export const getDependency = async <Path extends string, Data>(
   }
   const ref = firestore.doc(`${path}/${id}`)
   const snapshot = await ref.get()
-  const data = callback(snapshot)
+  const data = callback(snapshot) ?? null
   return [data, ref]
 }
 
@@ -35,7 +35,7 @@ export const getDependencies = async <Path extends string, Data>(
   const docs = snapshots
     .flatMap((snapshot) => {
       if (snapshot.exists) {
-        callback(snapshot)
+        return callback(snapshot) ?? null
       }
       return null
     })
