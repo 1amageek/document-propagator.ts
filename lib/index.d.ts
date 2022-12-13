@@ -37,7 +37,7 @@ export declare const DepedencyResource: (documentID: string, field: Field, resou
  */
 export declare const resolve: <Data extends {
     [key: string]: any;
-}>(firestore: Firestore, queries: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
+}>(firestore: Firestore, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
     [key: string]: any;
 };
 /**

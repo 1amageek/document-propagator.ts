@@ -31,7 +31,7 @@ export const join = (from: string, to: string, resources: JoinDependencyResource
  * @param field Field name to join to
  * @param resource Path of CollectionReference with wildcards "/users/{userID}"
  */
-export const DepedencyResource = (documentID: string, field: Field, resource: string) => {
+export const depedencyResource = (documentID: string, field: Field, resource: string) => {
   return { documentID, field, resource }
 }
 
