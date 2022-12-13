@@ -1,3 +1,4 @@
+import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1";
 import { Field, JoinDependencyResource, JoinQuery, Target } from "./helper";
 import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore";
 /**
@@ -21,7 +22,10 @@ export declare const depedencyResource: (documentID: string, field: Field, resou
 };
 export declare const resolve: <Data extends {
     [key: string]: any;
-}>(firestore: Firestore, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
+}>(firestore: Firestore, options: {
+    regions: Array<(typeof SUPPORTED_REGIONS)[number] | string> | null;
+    runtimeOptions: RuntimeOptions | null;
+} | null, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
     j: {
         [key: string]: any;
     };
@@ -38,7 +42,10 @@ export declare const resolve: <Data extends {
  */
 export declare const join: <Data extends {
     [key: string]: any;
-}>(firestore: Firestore, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
+}>(firestore: Firestore, options: {
+    regions: Array<(typeof SUPPORTED_REGIONS)[number] | string> | null;
+    runtimeOptions: RuntimeOptions | null;
+} | null, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
     [key: string]: any;
 };
 /**
@@ -46,6 +53,9 @@ export declare const join: <Data extends {
  * @param targets
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export declare const propagate: (firestore: Firestore, targets: Target[]) => {
+export declare const propagate: (firestore: Firestore, options: {
+    regions: Array<(typeof SUPPORTED_REGIONS)[number] | string> | null;
+    runtimeOptions: RuntimeOptions | null;
+} | null, targets: Target[]) => {
     [key: string]: any;
 };
