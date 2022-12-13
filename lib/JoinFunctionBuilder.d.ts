@@ -8,6 +8,6 @@ export declare class JoinFunctionBuilder {
     constructor(firestore: Firestore);
     build<Data>(options: {
         regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null;
-        runtimeOptions: RuntimeOptions | null;
+        runtimeOptions?: RuntimeOptions;
     } | null, triggerResource: string, targetResource: string, dependencies: JoinDependencyResource[], callback: (snapshot: DocumentSnapshot<DocumentData>) => Data): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 }

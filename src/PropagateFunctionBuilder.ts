@@ -1,7 +1,7 @@
 import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference } from "firebase-admin/firestore"
 import * as functions from "firebase-functions/v1"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getTargetPath } from "./helper"
+import { DependencyResource, Field, getTargetPath, encode } from "./helper"
 
 
 type DependencyTarget = {
@@ -20,7 +20,7 @@ export class PropagateFunctionBuilder {
   build(
     options: {
       regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-      runtimeOptions?: RuntimeOptions 
+      runtimeOptions?: RuntimeOptions
     } | null,
     triggerResource: string,
     dependencyTargetResources: DependencyResource[]
@@ -50,7 +50,7 @@ const onUpdate = async (
   dependencyTargets: DependencyTarget[],
   snapshot: DocumentSnapshot,
 ) => {
-  const data = snapshot.data()!
+  const data = encode(snapshot.data()!)
   const ref = snapshot.ref
   await resolve(firestore, dependencyTargets, ref, data)
 }

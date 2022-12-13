@@ -65,7 +65,7 @@ export const join = <Data extends { [key: string]: any }>(
   const data: DocumentFunction[] = queries.map(query => {
     const collectionIDs = getCollectionIDs(query.from)
     const onWrite = builder.build(options, query.from, query.to, query.resources, _callback)
-    return { name: [...collectionIDs], on: onWrite }
+    return { name: [...collectionIDs, "on"], on: onWrite }
   })
   return convert(data)
 }
@@ -100,7 +100,7 @@ export const propagate = (
       }
     })
     const onWrite = builder.build(options, triggerResource, depedencyResources)
-    return { name: [...collectionIDs], on: onWrite }
+    return { name: [...collectionIDs, "on"], on: onWrite }
   })
   return convert(data)
 }

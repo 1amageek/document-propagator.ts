@@ -24,7 +24,7 @@ export declare const resolve: <Data extends {
     [key: string]: any;
 }>(firestore: Firestore, options: {
     regions: Array<(typeof SUPPORTED_REGIONS)[number] | string> | null;
-    runtimeOptions: RuntimeOptions | null;
+    runtimeOptions?: RuntimeOptions;
 } | null, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
     j: {
         [key: string]: any;
@@ -44,7 +44,7 @@ export declare const join: <Data extends {
     [key: string]: any;
 }>(firestore: Firestore, options: {
     regions: Array<(typeof SUPPORTED_REGIONS)[number] | string> | null;
-    runtimeOptions: RuntimeOptions | null;
+    runtimeOptions?: RuntimeOptions;
 } | null, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
     [key: string]: any;
 };
@@ -55,7 +55,7 @@ export declare const join: <Data extends {
  */
 export declare const propagate: (firestore: Firestore, options: {
     regions: Array<(typeof SUPPORTED_REGIONS)[number] | string> | null;
-    runtimeOptions: RuntimeOptions | null;
+    runtimeOptions?: RuntimeOptions;
 } | null, targets: Target[]) => {
     [key: string]: any;
 };

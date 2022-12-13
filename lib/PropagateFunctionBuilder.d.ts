@@ -7,6 +7,6 @@ export declare class PropagateFunctionBuilder {
     constructor(firestore: Firestore);
     build(options: {
         regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null;
-        runtimeOptions: RuntimeOptions | null;
+        runtimeOptions?: RuntimeOptions;
     } | null, triggerResource: string, dependencyTargetResources: DependencyResource[]): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 }

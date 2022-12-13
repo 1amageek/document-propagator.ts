@@ -1,9 +1,8 @@
 import { Firestore } from "firebase-admin/firestore"
 import * as functions from "firebase-functions"
-import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
+import { EventContext, RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
 import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
-import { JoinDependencyResource, getTargetPath, replaceDependencyData } from "./helper"
-
+import { JoinDependencyResource, getTargetPath, replaceDependencyData, encode } from "./helper"
 
 export class JoinFunctionBuilder {
 
@@ -31,9 +30,9 @@ export class JoinFunctionBuilder {
       .onWrite((change, context) => {
         const targetPath = getTargetPath(context.params, triggerResource, targetResource)
         if (!change.before.exists) {
-          onCreate(this.firestore, targetPath, change.after, dependencies, callback)
+          onCreate(this.firestore, context, targetPath, change.after, dependencies, callback)
         } else if (change.after.exists) {
-          onUpdate(this.firestore, targetPath, change.after, dependencies, callback)
+          onUpdate(this.firestore, context, targetPath, change.after, dependencies, callback)
         }
       })
   }
@@ -41,6 +40,7 @@ export class JoinFunctionBuilder {
 
 const onCreate = async <Data>(
   firestore: Firestore,
+  context: EventContext,
   targetPath: string,
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
@@ -48,14 +48,14 @@ const onCreate = async <Data>(
   ) => Data
 ) => {
   const data = snapshot.data()!
-  const [dependence, results] = await replaceDependencyData(firestore, dependencies, data, callback)
-  const documentData = {
+  const [dependence, results] = await replaceDependencyData(firestore, context, dependencies, data, callback)
+  const documentData = encode({
     ...data,
     ...results,
     createTime: snapshot.updateTime!.toDate(),
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
-  }
+  })
   await firestore
     .doc(targetPath)
     .set(documentData, { merge: true })
@@ -63,6 +63,7 @@ const onCreate = async <Data>(
 
 const onUpdate = async <Data>(
   firestore: Firestore,
+  context: EventContext,
   targetPath: string,
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
@@ -70,13 +71,13 @@ const onUpdate = async <Data>(
   ) => Data
 ) => {
   const data = snapshot.data()!
-  const [dependence, results] = await replaceDependencyData(firestore, dependencies, data, callback)
-  const documentData = {
+  const [dependence, results] = await replaceDependencyData(firestore, context, dependencies, data, callback)
+  const documentData = encode({
     ...data,
     ...results,
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
-  }
+  })
   await firestore
     .doc(targetPath)
     .set(documentData, { merge: true })
