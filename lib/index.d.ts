@@ -25,7 +25,9 @@ export declare const resolve: <Data extends {
     j: {
         [key: string]: any;
     };
-    p: any;
+    p: {
+        [key: string]: any;
+    };
 };
 /**
  * Triggered when the original data is updated to collect the required data and generate the joined data.
@@ -44,4 +46,6 @@ export declare const join: <Data extends {
  * @param targets
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export declare const propagate: (firestore: Firestore, targets: Target[]) => any;
+export declare const propagate: (firestore: Firestore, targets: Target[]) => {
+    [key: string]: any;
+};
