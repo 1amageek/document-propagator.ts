@@ -1,18 +1,21 @@
 {
   "name": "@1amageek/document-propagator",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.0",
+  "description": "Resolving Document dependencies in Cloud Firestore.",
+  "contributors": [
+    {
+      "name": "Norikazu Muramoto",
+      "email": "tmy0x3@icloud.com"
+    }
+  ],
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "prepare": "npm run build",
     "build": "tsc -d",
-    "build:watch": "tsc --watch",
-    "serve": "npm run build && firebase emulators:start --only functions",
-    "shell": "npm run build && firebase functions:shell",
-    "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
-  },
-  "engines": {
-    "node": "16"
+    "build:watch": "tsc --watch"
   },
   "main": "lib/index.js",
   "dependencies": {
