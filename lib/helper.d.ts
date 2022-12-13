@@ -4,6 +4,15 @@ import { Dependence } from "./Dependence";
 export type CollectionReferenceResource = string;
 export type DocumentReferencePath = string;
 export type Field = string;
+export type Target = {
+    resource: string;
+    dependencies: DependencyResource[];
+};
+export type JoinQuery = {
+    from: string;
+    to: string;
+    resources: JoinDependencyResource[];
+};
 export type JoinDependencyResource = {
     documentID: string;
     field: Field;
@@ -25,3 +34,4 @@ export declare const getTargetPath: (params: {
 }, triggerResource: string, targetResource: string) => string;
 export declare const getCollectionIDs: (path: string) => string[];
 export declare const groupBy: <K extends PropertyKey, V>(array: readonly V[], getKey: (cur: V, idx: number, src: readonly V[]) => K) => Partial<Record<K, V[]>>;
+export declare const getPropagateTargets: (queries: JoinQuery[]) => Target[];

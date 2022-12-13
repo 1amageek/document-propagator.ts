@@ -1,14 +1,5 @@
-import { DependencyResource, Field, JoinDependencyResource } from "./helper";
+import { Field, JoinDependencyResource, JoinQuery, Target } from "./helper";
 import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore";
-export type Target = {
-    resource: string;
-    dependencies: DependencyResource[];
-};
-export type JoinQuery = {
-    from: string;
-    to: string;
-    resources: JoinDependencyResource[];
-};
 /**
  *
  * @param from DocumentReference with wildcards for the original data
@@ -16,7 +7,7 @@ export type JoinQuery = {
  * @param resources Data required for join
  * @returns Returns a joinQuery. This is used by resolve.
  */
-export declare const join: (from: string, to: string, resources: JoinDependencyResource[]) => JoinQuery;
+export declare const joinQuery: (from: string, to: string, resources: JoinDependencyResource[]) => JoinQuery;
 /**
  *
  * @param documentID DocumentID of source data
@@ -28,6 +19,14 @@ export declare const depedencyResource: (documentID: string, field: Field, resou
     field: string;
     resource: string;
 };
+export declare const resolve: <Data extends {
+    [key: string]: any;
+}>(firestore: Firestore, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
+    j: {
+        [key: string]: any;
+    };
+    p: any;
+};
 /**
  * Triggered when the original data is updated to collect the required data and generate the joined data.
  * @param firestore Firestore for AdminApp
@@ -35,7 +34,7 @@ export declare const depedencyResource: (documentID: string, field: Field, resou
  * @param callback If you need to process the acquired data, you can change it here.
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export declare const resolve: <Data extends {
+export declare const join: <Data extends {
     [key: string]: any;
 }>(firestore: Firestore, queries?: JoinQuery[], callback?: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null) => {
     [key: string]: any;

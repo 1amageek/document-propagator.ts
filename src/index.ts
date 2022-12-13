@@ -1,4 +1,4 @@
-import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, getTargetPath, groupBy, JoinDependencyResource, JoinQuery, Target } from "./helper"
+import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, Target } from "./helper"
 import { PropagateFunctionBuilder } from "./PropagateFunctionBuilder"
 import { JoinFunctionBuilder } from "./JoinFunctionBuilder"
 import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore"
