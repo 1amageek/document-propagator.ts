@@ -11,6 +11,7 @@
       "email": "tmy0x3@icloud.com"
     }
   ],
+  "keywords": ["Firebase", "CloudFirestore", "CloudFunctions"],
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "prepare": "npm run build",

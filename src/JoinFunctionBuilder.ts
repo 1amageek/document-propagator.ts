@@ -20,6 +20,7 @@ export class JoinFunctionBuilder {
     triggerResource: string,
     targetResource: string,
     dependencies: JoinDependencyResource[],
+    snapshotHandler: (snapshot: DocumentSnapshot<DocumentData>) => boolean,
     callback: (snapshot: DocumentSnapshot<DocumentData>) => Data
   ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
     let builder = options?.regions != null ? functions.region(...options.regions) : functions
@@ -30,9 +31,9 @@ export class JoinFunctionBuilder {
       .onWrite((change, context) => {
         const targetPath = getTargetPath(context.params, triggerResource, targetResource)
         if (!change.before.exists) {
-          onCreate(this.firestore, context, targetPath, change.after, dependencies, callback)
+          onCreate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
         } else if (change.after.exists) {
-          onUpdate(this.firestore, context, targetPath, change.after, dependencies, callback)
+          onUpdate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
         }
       })
   }
@@ -44,9 +45,13 @@ const onCreate = async <Data>(
   targetPath: string,
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
+  snapshotHandler: (snapshot: DocumentSnapshot<DocumentData>) => boolean,
   callback: (snapshot: DocumentSnapshot<DocumentData>
   ) => Data
 ) => {
+  if (!snapshotHandler(snapshot)) {
+    return
+  }
   const data = snapshot.data()!
   const [dependence, results] = await replaceDependencyData(firestore, context, dependencies, data, callback)
   const documentData = encode({
@@ -67,9 +72,13 @@ const onUpdate = async <Data>(
   targetPath: string,
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
+  snapshotHandler: (snapshot: DocumentSnapshot<DocumentData>) => boolean,
   callback: (snapshot: DocumentSnapshot<DocumentData>
   ) => Data
 ) => {
+  if (!snapshotHandler(snapshot)) {
+    return
+  }
   const data = snapshot.data()!
   const [dependence, results] = await replaceDependencyData(firestore, context, dependencies, data, callback)
   const documentData = encode({

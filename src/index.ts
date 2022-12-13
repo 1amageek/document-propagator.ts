@@ -31,12 +31,14 @@ export const resolve = <Data extends { [key: string]: any }>(
   firestore: Firestore,
   options: {
     regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-    runtimeOptions?: RuntimeOptions 
+    runtimeOptions?: RuntimeOptions
   } | null,
   queries: JoinQuery[] = [],
-  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
+  snapshotHandler: ((snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null
+) => {
   return {
-    j: join(firestore, options, queries, callback),
+    j: join(firestore, options, queries, snapshotHandler, callback),
     p: propagate(firestore, options, getPropagateTargets(queries))
   }
 }
@@ -53,18 +55,24 @@ export const join = <Data extends { [key: string]: any }>(
   firestore: Firestore,
   options: {
     regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-    runtimeOptions?: RuntimeOptions 
+    runtimeOptions?: RuntimeOptions
   } | null,
   queries: JoinQuery[] = [],
-  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
+  snapshotHandler: ((snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null
+  ) => {
   const builder = new JoinFunctionBuilder(firestore)
+  const defaultSnapshotHandler = (snapshot: DocumentSnapshot<DocumentData>) => {
+    return true
+  }
   const defaultCallback = (snapshot: DocumentSnapshot<DocumentData>) => {
     return snapshot.data() as Data
   }
+  const _snapshotHandler = snapshotHandler ?? defaultSnapshotHandler
   const _callback = callback ?? defaultCallback
   const data: DocumentFunction[] = queries.map(query => {
     const collectionIDs = getCollectionIDs(query.from)
-    const onWrite = builder.build(options, query.from, query.to, query.resources, _callback)
+    const onWrite = builder.build(options, query.from, query.to, query.resources, _snapshotHandler, _callback)
     return { name: [...collectionIDs, "on"], on: onWrite }
   })
   return convert(data)
@@ -79,7 +87,7 @@ export const propagate = (
   firestore: Firestore,
   options: {
     regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-    runtimeOptions?: RuntimeOptions 
+    runtimeOptions?: RuntimeOptions
   } | null,
   targets: Target[]
 ) => {
