@@ -60,13 +60,13 @@ export const join = <Data extends { [key: string]: any }>(
   queries: JoinQuery[] = [],
   snapshotHandler: ((snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
   callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null
-  ) => {
+) => {
   const builder = new JoinFunctionBuilder(firestore)
   const defaultSnapshotHandler = (snapshot: DocumentSnapshot<DocumentData>) => {
     return true
   }
   const defaultCallback = (snapshot: DocumentSnapshot<DocumentData>) => {
-    return snapshot.data() as Data
+    return { ...snapshot.data(), id: snapshot.id } as any
   }
   const _snapshotHandler = snapshotHandler ?? defaultSnapshotHandler
   const _callback = callback ?? defaultCallback
