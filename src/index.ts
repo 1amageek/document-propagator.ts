@@ -1,18 +1,8 @@
-import { DependencyResource, Field, getCollectionIDs, groupBy, JoinDependencyResource } from "./helper"
+import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, getTargetPath, groupBy, JoinDependencyResource, JoinQuery, Target } from "./helper"
 import { PropagateFunctionBuilder } from "./PropagateFunctionBuilder"
 import { JoinFunctionBuilder } from "./JoinFunctionBuilder"
 import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore"
 
-export type Target = {
-  resource: string,
-  dependencies: DependencyResource[]
-}
-
-export type JoinQuery = {
-  from: string
-  to: string
-  resources: JoinDependencyResource[]
-}
 
 /**
  * 
@@ -21,7 +11,7 @@ export type JoinQuery = {
  * @param resources Data required for join
  * @returns Returns a joinQuery. This is used by resolve.
  */
-export const join = (from: string, to: string, resources: JoinDependencyResource[]): JoinQuery => {
+export const joinQuery = (from: string, to: string, resources: JoinDependencyResource[]): JoinQuery => {
   return { from, to, resources }
 }
 
@@ -35,6 +25,14 @@ export const depedencyResource = (documentID: string, field: Field, resource: st
   return { documentID, field, resource }
 }
 
+export const resolve = <Data extends { [key: string]: any }>(firestore: Firestore, queries: JoinQuery[] = [], callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
+  return {
+    j: join(firestore, queries, callback),
+    p: propagate(firestore, getPropagateTargets(queries))
+  }
+}
+
+
 /**
  * Triggered when the original data is updated to collect the required data and generate the joined data.
  * @param firestore Firestore for AdminApp
@@ -42,7 +40,7 @@ export const depedencyResource = (documentID: string, field: Field, resource: st
  * @param callback If you need to process the acquired data, you can change it here.
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export const resolve = <Data extends { [key: string]: any }>(firestore: Firestore, queries: JoinQuery[] = [], callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
+export const join = <Data extends { [key: string]: any }>(firestore: Firestore, queries: JoinQuery[] = [], callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null) => {
   const builder = new JoinFunctionBuilder(firestore)
   const defaultCallback = (snapshot: DocumentSnapshot<DocumentData>) => {
     return snapshot.data() as Data

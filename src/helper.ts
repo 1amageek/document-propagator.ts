@@ -10,6 +10,17 @@ export type DocumentReferencePath = string
 
 export type Field = string
 
+export type Target = {
+  resource: string,
+  dependencies: DependencyResource[]
+}
+
+export type JoinQuery = {
+  from: string
+  to: string
+  resources: JoinDependencyResource[]
+}
+
 export type JoinDependencyResource = {
   documentID: string
   field: Field
@@ -102,3 +113,19 @@ export const groupBy = <K extends PropertyKey, V>(
     (obj[key] || (obj[key] = []))!.push(cur);
     return obj;
   }, {} as Partial<Record<K, V[]>>)
+
+
+export const getPropagateTargets = (queries: JoinQuery[]): Target[] => {
+  return queries.map(query => {
+    const dependencies = query.resources.map(resource => {
+      return {
+        field: resource.field,
+        resource: `resource.resource/${resource.documentID}`
+      }
+    })
+    return {
+      resource: query.to,
+      dependencies: dependencies
+    } as Target
+  })
+}
