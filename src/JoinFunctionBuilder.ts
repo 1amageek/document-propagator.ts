@@ -31,10 +31,11 @@ export class JoinFunctionBuilder {
       .onWrite((change, context) => {
         const targetPath = getTargetPath(context.params, triggerResource, targetResource)
         if (!change.before.exists) {
-          onCreate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
+          return onCreate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
         } else if (change.after.exists) {
-          onUpdate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
+          return onUpdate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
         }
+        return null
       })
   }
 }
@@ -61,7 +62,7 @@ const onCreate = async <Data>(
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
   })
-  await firestore
+  return await firestore
     .doc(targetPath)
     .set(documentData, { merge: true })
 }
@@ -87,7 +88,7 @@ const onUpdate = async <Data>(
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
   })
-  await firestore
+  return await firestore
     .doc(targetPath)
     .set(documentData, { merge: true })
 }

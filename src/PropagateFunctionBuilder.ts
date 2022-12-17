@@ -36,11 +36,12 @@ export class PropagateFunctionBuilder {
         })
         if (change.before.exists) {
           if (change.after.exists) {
-            onUpdate(this.firestore, dependencyTargets, change.after)
+            return onUpdate(this.firestore, dependencyTargets, change.after)
           } else {
-            onDelete(this.firestore, dependencyTargets, change.before)
+            return onDelete(this.firestore, dependencyTargets, change.before)
           }
         }
+        return null
       })
   }
 }
@@ -52,7 +53,7 @@ const onUpdate = async (
 ) => {
   const data = encode(snapshot.data()!)
   const ref = snapshot.ref
-  await resolve(firestore, dependencyTargets, ref, data)
+  return await resolve(firestore, dependencyTargets, ref, data)
 }
 
 const onDelete = async (
@@ -60,7 +61,7 @@ const onDelete = async (
   dependencyTargets: DependencyTarget[],
   snapshot: DocumentSnapshot,
 ) => {
-  await resolve(firestore, dependencyTargets, snapshot.ref, null)
+  return await resolve(firestore, dependencyTargets, snapshot.ref, null)
 }
 
 /**
@@ -129,5 +130,5 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       }
     }
   }
-  await bulkWriter.close()
+  return await bulkWriter.close()
 }
