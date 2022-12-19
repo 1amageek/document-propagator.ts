@@ -70,12 +70,18 @@ export const join = <Data extends { [key: string]: any }>(
   }
   const _snapshotHandler = snapshotHandler ?? defaultSnapshotHandler
   const _callback = callback ?? defaultCallback
-  const data: DocumentFunction[] = queries.map(query => {
+  const functionNames = queries.reduce<string[]>((prev, query) => {
     const collectionIDs = getCollectionIDs(query.from)
+    return prev.concat(collectionIDs)
+  }, [])
+  const duplicateFunctionNames = functionNames.filter((x, i, arr) => arr.includes(x, i + 1))
+  const documentFunctions: DocumentFunction[] = queries.map(query => {
+    const collectionIDs = getCollectionIDs(query.from)
+    const names = collectionIDs.map(id => compress(id, duplicateFunctionNames))
     const onWrite = builder.build(options, query.from, query.to, query.resources, _snapshotHandler, _callback)
-    return { name: [...collectionIDs, "on"], on: onWrite }
+    return { name: [...names, "on"], on: onWrite }
   })
-  return convert(data)
+  return convert(documentFunctions)
 }
 
 /**
@@ -99,8 +105,14 @@ export const propagate = (
   const dependencies = groupBy(resources, (resource) => resource.depedencyResource)
   const builder = new PropagateFunctionBuilder(firestore)
 
-  const data: DocumentFunction[] = Object.keys(dependencies).map(triggerResource => {
+  const functionNames = Object.keys(dependencies).reduce<string[]>((prev, triggerResource) => {
     const collectionIDs = getCollectionIDs(triggerResource)
+    return prev.concat(collectionIDs)
+  }, [])
+  const duplicateFunctionNames = functionNames.filter((x, i, arr) => arr.includes(x, i + 1))
+  const documentFunctions: DocumentFunction[] = Object.keys(dependencies).map(triggerResource => {
+    const collectionIDs = getCollectionIDs(triggerResource)
+    const names = collectionIDs.map(id => compress(id, duplicateFunctionNames))
     const depedencyResources: DependencyResource[] = dependencies[triggerResource]!.map(v => {
       return {
         field: v.field,
@@ -108,9 +120,17 @@ export const propagate = (
       }
     })
     const onWrite = builder.build(options, triggerResource, depedencyResources)
-    return { name: [...collectionIDs, "on"], on: onWrite }
+    return { name: [...names, "on"], on: onWrite }
   })
-  return convert(data)
+  return convert(documentFunctions)
+}
+
+const compress = (name: string, list: string[]) => {
+  if (list.includes(name)) {
+    return name[0]
+  } else {
+    return name
+  }
 }
 
 type DocumentFunction = {
