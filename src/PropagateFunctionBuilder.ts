@@ -1,5 +1,6 @@
 import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference } from "firebase-admin/firestore"
 import * as functions from "firebase-functions/v1"
+import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
 import { DependencyResource, Field, getTargetPath, encode } from "./helper"
 
@@ -32,7 +33,9 @@ export class PropagateFunctionBuilder {
       .document(triggerResource)
       .onWrite((change, context) => {
         const dependencyTargets: DependencyTarget[] = dependencyTargetResources.map(target => {
-          return { reference: this.firestore.collection(getTargetPath(context.params, triggerResource, target.resource)), field: target.field }
+          const resource = target.resource.split("/").slice(1, -1).join("/")
+          const targetPath = getTargetPath(context.params, triggerResource, resource)
+          return { reference: this.firestore.collection(targetPath), field: target.field }
         })
         if (change.before.exists) {
           if (change.after.exists) {
@@ -53,6 +56,7 @@ const onUpdate = async (
 ) => {
   const data = encode(snapshot.data()!)
   const ref = snapshot.ref
+  logger.log(`[Propagate][onUpdate]${ref.path}`)
   return await resolve(firestore, dependencyTargets, ref, data)
 }
 
@@ -61,6 +65,7 @@ const onDelete = async (
   dependencyTargets: DependencyTarget[],
   snapshot: DocumentSnapshot,
 ) => {
+  logger.log(`[Propagate][onDelete]${snapshot.ref.path}`)
   return await resolve(firestore, dependencyTargets, snapshot.ref, null)
 }
 
@@ -72,18 +77,15 @@ const onDelete = async (
 */
 const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget[], reference: DocumentReference, documentData: any | null) => {
   const tasks = dependencyTargets.map(async (target) => {
-    const snapshot = await target.reference.where("__dependencies", "array-contains", reference).get()
+    const _reference = firestore.doc(reference.path)
+    const snapshot = await target.reference.where("__dependencies", "array-contains", _reference).get()
     return {
       snapshot: snapshot,
       field: target.field
     }
   })
   const targets = await Promise.all(tasks)
-  // const douments = targets.reduce((prev, current) => {
-  //   return prev.concat(current.docs)
-  // }, [] as QueryDocumentSnapshot<DocumentData>[])
   const bulkWriter = firestore.bulkWriter()
-
   // If data exists, update it.
   if (documentData) {
     const updateDocumentData = { ...documentData, id: reference.id }

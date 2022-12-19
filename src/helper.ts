@@ -136,7 +136,7 @@ export const getPropagateTargets = (queries: JoinQuery[]): Target[] => {
     const dependencies = query.resources.map(resource => {
       return {
         field: resource.field,
-        resource: `${resource.resource}/${resource.documentID}`
+        resource: `${resource.resource}/{${resource.documentID}}`
       }
     })
     return {
