@@ -127,8 +127,8 @@ export const propagate = (
 
 const compress = (name: string, list: string[]) => {
   if (list.includes(name)) {
-    if (name.length > 6) {
-      return name.slice(0, 6)
+    if (name.length > 1) {
+      return name.slice(0, 5)
     }
     return name[0]
   } else {
