@@ -35,11 +35,12 @@ export const resolve = <Data extends { [key: string]: any }>(
   } | null,
   queries: JoinQuery[] = [],
   snapshotHandler: ((snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
-  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null
+  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
+  propagateCallback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
 ) => {
   return {
     j: join(firestore, options, queries, snapshotHandler, callback),
-    p: propagate(firestore, options, getPropagateTargets(queries))
+    p: propagate(firestore, options, getPropagateTargets(queries), propagateCallback)
   }
 }
 
@@ -95,7 +96,8 @@ export const propagate = (
     regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
     runtimeOptions?: RuntimeOptions
   } | null,
-  targets: Target[]
+  targets: Target[],
+  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
 ) => {
   const resources = targets.flatMap(target => {
     return target.dependencies.map(dependency => {
@@ -119,7 +121,7 @@ export const propagate = (
         resource: v.targetResource
       }
     })
-    const onWrite = builder.build(options, triggerResource, depedencyResources)
+    const onWrite = builder.build(options, triggerResource, depedencyResources, callback)
     return { name: [...names, "on"], on: onWrite }
   })
   return convert(documentFunctions)

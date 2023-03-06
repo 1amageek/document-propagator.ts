@@ -1,4 +1,4 @@
-import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference } from "firebase-admin/firestore"
+import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData } from "firebase-admin/firestore"
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
@@ -24,7 +24,8 @@ export class PropagateFunctionBuilder {
       runtimeOptions?: RuntimeOptions
     } | null,
     triggerResource: string,
-    dependencyTargetResources: DependencyResource[]
+    dependencyTargetResources: DependencyResource[],
+    callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
   ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
     let builder = options?.regions != null ? functions.region(...options.regions) : functions
     builder = !!options?.runtimeOptions ? builder.runWith(options.runtimeOptions) : builder
@@ -39,7 +40,7 @@ export class PropagateFunctionBuilder {
         })
         if (change.before.exists) {
           if (change.after.exists) {
-            return onUpdate(this.firestore, dependencyTargets, change.after)
+            return onUpdate(this.firestore, dependencyTargets, change.before, change.after, callback)
           } else {
             return onDelete(this.firestore, dependencyTargets, change.before)
           }
@@ -52,10 +53,18 @@ export class PropagateFunctionBuilder {
 const onUpdate = async (
   firestore: Firestore,
   dependencyTargets: DependencyTarget[],
-  snapshot: DocumentSnapshot,
+  before: DocumentSnapshot,
+  after: DocumentSnapshot,
+  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
 ) => {
-  const data = encode(snapshot.data()!)
-  const ref = snapshot.ref
+  if (callback !== null) {
+    const execute = callback(before, after)
+    if (!execute) {
+      return
+    }
+  }
+  const data = encode(after.data()!)
+  const ref = after.ref
   logger.log(`[Propagate][onUpdate]${ref.path}`)
   return await resolve(firestore, dependencyTargets, ref, data)
 }
