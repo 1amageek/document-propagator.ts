@@ -97,6 +97,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
   const bulkWriter = firestore.bulkWriter()
   // If data exists, update it.
   if (documentData) {
+    const propageteID = documentData["__propageteID"] ?? null
     const updateDocumentData = { ...documentData, id: reference.id }
     for (const target of targets) {
       const documents = target.snapshot.docs
@@ -115,6 +116,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
         } else {
           bulkWriter.update(doc.ref, {
             [field]: updateDocumentData,
+            "__propageteID": propageteID
           })
         }
       }
