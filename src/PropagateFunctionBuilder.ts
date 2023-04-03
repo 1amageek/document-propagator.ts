@@ -3,7 +3,7 @@ import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
 import { DependencyResource, Field, getTargetPath, encode } from "./helper"
-
+import { v4 as uuidv4 } from 'uuid'
 
 type DependencyTarget = {
   reference: CollectionReference
@@ -97,7 +97,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
   const bulkWriter = firestore.bulkWriter()
   // If data exists, update it.
   if (documentData) {
-    const propageteID = documentData["__propageteID"] ?? null
+    const propageteID = documentData["__propageteID"] ?? uuidv4()
     const updateDocumentData = { ...documentData, id: reference.id }
     for (const target of targets) {
       const documents = target.snapshot.docs
