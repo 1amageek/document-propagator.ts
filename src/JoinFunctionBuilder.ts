@@ -3,6 +3,7 @@ import * as functions from "firebase-functions"
 import { EventContext, RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
 import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
 import { JoinDependencyResource, getTargetPath, replaceDependencyData, encode } from "./helper"
+import { v4 as uuidv4 } from 'uuid'
 
 export class JoinFunctionBuilder {
 
@@ -61,6 +62,7 @@ const onCreate = async <Data>(
     createTime: snapshot.updateTime!.toDate(),
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
+    __propageteID: uuidv4()
   })
   return await firestore
     .doc(targetPath)
@@ -87,6 +89,7 @@ const onUpdate = async <Data>(
     ...results,
     updateTime: snapshot.updateTime!.toDate(),
     __dependencies: dependence.dependencies,
+    __propageteID: uuidv4()
   })
   return await firestore
     .doc(targetPath)
