@@ -111,6 +111,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
             fieldData[index] = updateDocumentData
             bulkWriter.update(doc.ref, {
               [field]: fieldData,
+              "__propageteID": propageteID
             })
           }
         } else {
