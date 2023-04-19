@@ -31,12 +31,16 @@ export class JoinFunctionBuilder {
       .document(triggerResource)
       .onWrite((change, context) => {
         const targetPath = getTargetPath(context.params, triggerResource, targetResource)
-        if (!change.before.exists) {
+
+        if (change.before.exists) {
+          if (change.after.exists) {
+            return onUpdate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
+          } else {
+            return onDelete(this.firestore, context, targetPath, change.before, snapshotHandler)
+          }
+        } else {
           return onCreate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
-        } else if (change.after.exists) {
-          return onUpdate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)
         }
-        return null
       })
   }
 }
@@ -48,8 +52,7 @@ const onCreate = async <Data>(
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
   snapshotHandler: (snapshot: DocumentSnapshot<DocumentData>) => boolean,
-  callback: (snapshot: DocumentSnapshot<DocumentData>
-  ) => Data
+  callback: (snapshot: DocumentSnapshot<DocumentData>) => Data
 ) => {
   if (!snapshotHandler(snapshot)) {
     return
@@ -76,8 +79,7 @@ const onUpdate = async <Data>(
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
   snapshotHandler: (snapshot: DocumentSnapshot<DocumentData>) => boolean,
-  callback: (snapshot: DocumentSnapshot<DocumentData>
-  ) => Data
+  callback: (snapshot: DocumentSnapshot<DocumentData>) => Data
 ) => {
   if (!snapshotHandler(snapshot)) {
     return
@@ -94,4 +96,20 @@ const onUpdate = async <Data>(
   return await firestore
     .doc(targetPath)
     .set(documentData, { merge: true })
+}
+
+
+const onDelete = async (
+  firestore: Firestore,
+  context: EventContext,
+  targetPath: string,
+  snapshot: DocumentSnapshot,
+  snapshotHandler: (snapshot: DocumentSnapshot<DocumentData>) => boolean,
+) => {
+  if (!snapshotHandler(snapshot)) {
+    return
+  }
+  return await firestore
+    .doc(targetPath)
+    .delete()
 }
