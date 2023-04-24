@@ -31,7 +31,6 @@ export class JoinFunctionBuilder {
       .document(triggerResource)
       .onWrite((change, context) => {
         const targetPath = getTargetPath(context.params, triggerResource, targetResource)
-
         if (change.before.exists) {
           if (change.after.exists) {
             return onUpdate(this.firestore, context, targetPath, change.after, dependencies, snapshotHandler, callback)

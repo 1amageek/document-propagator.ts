@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions/v1"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, Target } from "./helper"
+import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, Target, Data } from "./helper"
 import { PropagateFunctionBuilder } from "./PropagateFunctionBuilder"
 import { JoinFunctionBuilder } from "./JoinFunctionBuilder"
 import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore"
@@ -27,20 +27,21 @@ export const depedencyResource = (documentID: string, field: Field, resource: st
   return { documentID, field, resource }
 }
 
-export const resolve = <Data extends { [key: string]: any }>(
+export const resolve = (
   firestore: Firestore,
   options: {
     regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
     runtimeOptions?: RuntimeOptions
   } | null,
   queries: JoinQuery[] = [],
-  snapshotHandler: ((snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
-  callback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
-  propagateCallback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
+  joinSnapshotHandler: ((snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  joinCallback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
+  propagateSnapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  propagateCallback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
 ) => {
   return {
-    j: join(firestore, options, queries, snapshotHandler, callback),
-    p: propagate(firestore, options, getPropagateTargets(queries), propagateCallback)
+    j: join(firestore, options, queries, joinSnapshotHandler, joinCallback),
+    p: propagate(firestore, options, getPropagateTargets(queries), propagateSnapshotHandler, propagateCallback)
   }
 }
 
@@ -97,16 +98,20 @@ export const propagate = (
     runtimeOptions?: RuntimeOptions
   } | null,
   targets: Target[],
-  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
+  snapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => Data) | null = null
 ) => {
   const resources = targets.flatMap(target => {
     return target.dependencies.map(dependency => {
       return { targetResource: target.resource, field: dependency.field, depedencyResource: dependency.resource }
     })
   })
+  const defaultCallback = (before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => {
+    return { ...after.data(), id: after.id } as any
+  }
+  const _callback = callback ?? defaultCallback
   const dependencies = groupBy(resources, (resource) => resource.depedencyResource)
   const builder = new PropagateFunctionBuilder(firestore)
-
   const functionNames = Object.keys(dependencies).reduce<string[]>((prev, triggerResource) => {
     const collectionIDs = getCollectionIDs(triggerResource)
     return prev.concat(collectionIDs)
@@ -121,7 +126,7 @@ export const propagate = (
         resource: v.targetResource
       }
     })
-    const onWrite = builder.build(options, triggerResource, depedencyResources, callback)
+    const onWrite = builder.build(options, triggerResource, depedencyResources, snapshotHandler, _callback)
     return { name: [...names, "on"], on: onWrite }
   })
   return convert(documentFunctions)

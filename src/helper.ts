@@ -11,6 +11,8 @@ export type DocumentReferencePath = string
 
 export type Field = string
 
+export type Data = { [key: string]: any }
+
 export type Target = {
   resource: string,
   dependencies: DependencyResource[]
@@ -147,7 +149,7 @@ export const getPropagateTargets = (queries: JoinQuery[]): Target[] => {
     .filter(v => v.dependencies.length > 0)
 }
 
-export const encode = (data: { [key: string]: any }): { [key: string]: any } => {
+export const encode = (data: Data): Data => {
   const _data = { ...data }
   _replaceTimestamp(_data)
   return _data

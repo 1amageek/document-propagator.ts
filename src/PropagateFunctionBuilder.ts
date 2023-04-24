@@ -2,7 +2,7 @@ import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, Do
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getTargetPath, encode } from "./helper"
+import { DependencyResource, Field, getTargetPath, encode, Data } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
 
 type DependencyTarget = {
@@ -25,7 +25,8 @@ export class PropagateFunctionBuilder {
     } | null,
     triggerResource: string,
     dependencyTargetResources: DependencyResource[],
-    callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
+    snapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+    callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => Data),
   ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
     let builder = options?.regions != null ? functions.region(...options.regions) : functions
     builder = !!options?.runtimeOptions ? builder.runWith(options.runtimeOptions) : builder
@@ -40,7 +41,7 @@ export class PropagateFunctionBuilder {
         })
         if (change.before.exists) {
           if (change.after.exists) {
-            return onUpdate(this.firestore, dependencyTargets, change.before, change.after, callback)
+            return onUpdate(this.firestore, dependencyTargets, change.before, change.after, snapshotHandler, callback)
           } else {
             return onDelete(this.firestore, dependencyTargets, change.before)
           }
@@ -55,15 +56,17 @@ const onUpdate = async (
   dependencyTargets: DependencyTarget[],
   before: DocumentSnapshot,
   after: DocumentSnapshot,
-  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null
+  hander: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => Data)
 ) => {
-  if (callback !== null) {
-    const execute = callback(before, after)
+  if (hander !== null) {
+    const execute = hander(before, after)
     if (!execute) {
       return
     }
   }
-  const data = encode(after.data()!)
+  const _data = callback(before, after)
+  const data = encode(_data)
   const ref = after.ref
   logger.log(`[Propagate][onUpdate]${ref.path}`)
   return await resolve(firestore, dependencyTargets, ref, data)
