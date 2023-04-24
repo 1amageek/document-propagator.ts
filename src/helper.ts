@@ -1,7 +1,7 @@
 import { Firestore, Timestamp, DocumentReference } from "firebase-admin/firestore";
 import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
-import { EventContext } from "firebase-functions/v1";
 import { Dependence } from "./Dependence";
+import { Context } from "./Interface";
 
 const WILDCARD_REGEX = new RegExp('{[^/{}]*}', 'g')
 
@@ -16,12 +16,19 @@ export type Data = { [key: string]: any }
 export type Target = {
   resource: string,
   dependencies: DependencyResource[]
+  group: PathGroup | null
 }
 
 export type JoinQuery = {
   from: string
   to: string
   resources: JoinDependencyResource[]
+  group?: PathGroup | undefined
+}
+
+export type PathGroup = {
+  documentID: string
+  values: string[]
 }
 
 export type JoinDependencyResource = {
@@ -33,6 +40,7 @@ export type JoinDependencyResource = {
 export type DependencyResource = {
   field: Field
   resource: string
+  group: PathGroup | null
 }
 
 export type TargetResource = {
@@ -42,11 +50,12 @@ export type TargetResource = {
 
 export const replaceDependencyData = async <Data>(
   firestore: Firestore,
-  context: EventContext,
+  context: Context,
   dependencyResources: JoinDependencyResource[],
   data: DocumentData,
-  callback: (snapshot: DocumentSnapshot<DocumentData>) => Data
+  callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
 ): Promise<[Dependence, { [x: string]: any }[]]> => {
+  const _context = context.event
   const dependence = new Dependence(firestore)
   const tasks = dependencyResources.map(async dependencyResource => {
     const value = data[dependencyResource.documentID]
@@ -54,13 +63,13 @@ export const replaceDependencyData = async <Data>(
       return { [dependencyResource.field]: null }
     }
     if (isString(value)) {
-      const path = getPathFromResource(context.params, dependencyResource.resource)
-      const dependencyData = await dependence.setDependency(path, value, callback)
+      const path = getPathFromResource(_context.params, dependencyResource.resource)
+      const dependencyData = await dependence.setDependency(path, value, context, callback)
       return { [dependencyResource.field]: dependencyData }
     }
     if (isStringArray(value)) {
-      const path = getPathFromResource(context.params, dependencyResource.resource)
-      const dependenciesData = await dependence.setDependencies(path, value, callback)
+      const path = getPathFromResource(_context.params, dependencyResource.resource)
+      const dependenciesData = await dependence.setDependencies(path, value, context, callback)
       return { [dependencyResource.field]: dependenciesData }
     }
     return { [dependencyResource.field]: null }
@@ -68,6 +77,18 @@ export const replaceDependencyData = async <Data>(
   const responses = await Promise.all(tasks)
   const results = Object.assign({}, ...responses)
   return [dependence, results]
+}
+
+export const getPath = (resource: string, params: { [key: string]: string }) => {
+  const paramaterNames = getDocumentIDs(resource)
+  let path = resource
+  for (const name of paramaterNames) {
+    const pattarn = `{${name}}`
+    const reg = new RegExp(pattarn, 'g');
+    const value = params[name]
+    path = path.replace(reg, value)
+  }
+  return path
 }
 
 const getPathFromResource = (params: { [key: string]: string }, resource: string) => {
@@ -83,11 +104,11 @@ const getPathFromResource = (params: { [key: string]: string }, resource: string
 }
 
 export const getTargetPath = (params: { [key: string]: string }, triggerResource: string, targetResource: string) => {
-  const paramaterNames = getDocumentIDs(triggerResource)
+  const parameterNames = getDocumentIDs(triggerResource)
   let targetPath = targetResource
-  for (const name of paramaterNames) {
-    const pattarn = `{${name}}`
-    const reg = new RegExp(pattarn, 'g');
+  for (const name of parameterNames) {
+    const pattern = `{${name}}`
+    const reg = new RegExp(pattern, 'g');
     const value = params[name]
     targetPath = targetPath.replace(reg, value)
   }
@@ -134,17 +155,38 @@ export const groupBy = <K extends PropertyKey, V>(
 
 
 export const getPropagateTargets = (queries: JoinQuery[]): Target[] => {
-  return queries.map(query => {
+  return queries.flatMap(query => {
     const dependencies = query.resources.map(resource => {
       return {
         field: resource.field,
-        resource: `${resource.resource}/{${resource.documentID}}`
+        resource: `${resource.resource}/{${resource.documentID}}`,
       }
     })
-    return {
+    return [{
       resource: query.to,
-      dependencies: dependencies
-    } as Target
+      dependencies: dependencies,
+      group: query.group ?? null
+    } as Target]
+    // const group = query.group
+    // if (!group) {
+    //   return [{
+    //     resource: query.to,
+    //     dependencies: dependencies
+    //   } as Target]
+    // }
+    // return group.values.map(value => {
+    //   const resource = getPath(query.to, { [group.documentID]: value })
+    //   const _dependencies = dependencies.map(dependency => {
+    //     return {
+    //       field: dependency.field,
+    //       resource: getPath(dependency.resource, { [group.documentID]: value })
+    //     }
+    //   })
+    //   return {
+    //     resource: resource,
+    //     dependencies: _dependencies,
+    //   } as Target
+    // })
   })
     .filter(v => v.dependencies.length > 0)
 }

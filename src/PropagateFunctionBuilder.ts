@@ -2,7 +2,7 @@ import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, Do
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getTargetPath, encode, Data } from "./helper"
+import { DependencyResource, Field, getTargetPath, encode, Data, getPath } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
 
 type DependencyTarget = {
@@ -34,10 +34,18 @@ export class PropagateFunctionBuilder {
       .firestore
       .document(triggerResource)
       .onWrite((change, context) => {
-        const dependencyTargets: DependencyTarget[] = dependencyTargetResources.map(target => {
-          const resource = target.resource.split("/").slice(1, -1).join("/")
-          const targetPath = getTargetPath(context.params, triggerResource, resource)
-          return { reference: this.firestore.collection(targetPath), field: target.field }
+        const dependencyTargets: DependencyTarget[] = dependencyTargetResources.flatMap(target => {
+          const paths = target.resource.split("/")
+          const resource = paths.slice(0, paths.length - 1).join("/")
+          let targetPath = getTargetPath(context.params, triggerResource, resource)
+          const group = target.group
+          if (!group) {
+            return [{ reference: this.firestore.collection(targetPath), field: target.field }]
+          }
+          return group.values.map(value => {
+            targetPath = getPath(targetPath, { [group.documentID]: value })
+            return { reference: this.firestore.collection(targetPath), field: target.field }
+          })
         })
         if (change.before.exists) {
           if (change.after.exists) {
@@ -88,7 +96,9 @@ const onDelete = async (
 * @param documentData DocumentData
 */
 const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget[], reference: DocumentReference, documentData: any | null) => {
+  const bulkWriter = firestore.bulkWriter()
   const tasks = dependencyTargets.map(async (target) => {
+    console.log("reference", reference.path)
     const _reference = firestore.doc(reference.path)
     const snapshot = await target.reference.where("__dependencies", "array-contains", _reference).get()
     return {
@@ -97,7 +107,6 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
     }
   })
   const targets = await Promise.all(tasks)
-  const bulkWriter = firestore.bulkWriter()
   // If data exists, update it.
   if (documentData) {
     const propageteID = documentData["__propageteID"] ?? uuidv4()
