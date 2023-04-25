@@ -105,7 +105,7 @@ export const propagate = (
   const targets = getPropagateTargets(queries)
   const resources = targets.flatMap(target => {
     return target.dependencies.map(dependency => {
-      return { targetResource: target.resource, field: dependency.field, depedencyResource: dependency.resource, group: target.group }
+      return { from: target.from, to: target.to, documentID: dependency.documentID, field: dependency.field, depedencyResource: dependency.resource, group: target.group }
     })
   })
   const defaultCallback = (before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => {
@@ -124,8 +124,11 @@ export const propagate = (
     const names = collectionIDs.map(id => compress(id, duplicateFunctionNames))
     const depedencyResources: DependencyResource[] = dependencies[triggerResource]!.map(v => {
       return {
+        from: v.from,
+        to: v.to,
         field: v.field,
-        resource: v.targetResource,
+        resource: v.to,
+        documentID: v.documentID,
         group: v.group
       }
     })

@@ -14,7 +14,8 @@ export type Field = string
 export type Data = { [key: string]: any }
 
 export type Target = {
-  resource: string,
+  from: string
+  to: string
   dependencies: DependencyResource[]
   group: PathGroup | null
 }
@@ -38,8 +39,11 @@ export type JoinDependencyResource = {
 }
 
 export type DependencyResource = {
+  from: string
+  to: string
   field: Field
   resource: string
+  documentID: string
   group: PathGroup | null
 }
 
@@ -89,6 +93,25 @@ export const getPath = (resource: string, params: { [key: string]: string }) => 
     path = path.replace(reg, value)
   }
   return path
+}
+
+export const getParams = (path: string, format: string): { [key: string]: string } => {
+  const pattern = format.replace(/\{([^}]+)\}/g, '([^/]+)');
+  const reg = new RegExp(pattern);
+  const match = path.match(reg);
+  if (!match) {
+    return {};
+  }
+  const formatMatch = format.match(/\{([^}]+)\}/g);
+  if (!formatMatch) {
+    return {};
+  }
+  const paramNames = formatMatch.map(name => name.substring(1, name.length - 1));
+  const params: { [key: string]: string } = {};
+  for (let i = 0; i < paramNames.length; i++) {
+    params[paramNames[i]] = match[i + 1];
+  }
+  return params;
 }
 
 const getPathFromResource = (params: { [key: string]: string }, resource: string) => {
@@ -156,14 +179,19 @@ export const groupBy = <K extends PropertyKey, V>(
 
 export const getPropagateTargets = (queries: JoinQuery[]): Target[] => {
   return queries.flatMap(query => {
-    const dependencies = query.resources.map(resource => {
+    const dependencies: DependencyResource[] = query.resources.map(resource => {
       return {
+        from: query.from,
+        to: query.to,
         field: resource.field,
+        documentID: resource.documentID,
         resource: `${resource.resource}/{${resource.documentID}}`,
+        group: query.group ?? null
       }
     })
     return [{
-      resource: query.to,
+      from: query.from,
+      to: query.to,
       dependencies: dependencies,
       group: query.group ?? null
     } as Target]

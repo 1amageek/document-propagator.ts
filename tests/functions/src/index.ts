@@ -16,11 +16,11 @@ export const r = propagator.resolve(firestore,
   { regions: ["asia-northeast1"] },
   [
     {
-      from: "/firstDrafts/{firstID}",
-      to: "lang/{lang}/firsts/{firstID}",
+      from: "/companies/{companyID}",
+      to: "lang/{lang}/companies/{companyID}",
       resources: [
-        depedencyResource("secondID", "second", "/lang/{lang}/seconds"),
-        { documentID: "thirdIDs", field: "thirds", resource: "/lang/{lang}/thirds" }     
+        depedencyResource("placeID", "place", "/lang/{lang}/places"),
+        { documentID: "employeeIDs", field: "employees", resource: "/lang/{lang}/employees" }     
       ],
       group: {
         documentID: "lang",
@@ -28,8 +28,8 @@ export const r = propagator.resolve(firestore,
       }
     },
     {
-      from: "/secondDrafts/{secondID}",
-      to: "lang/{lang}/seconds/{secondID}",
+      from: "/places/{placeID}",
+      to: "lang/{lang}/places/{placeID}",
       resources: [],
       group: {
         documentID: "lang",
@@ -37,8 +37,8 @@ export const r = propagator.resolve(firestore,
       }
     },
     {
-      from: "/thirdDrafts/{thirdID}",
-      to: "lang/{lang}/thirds/{thirdID}",
+      from: "/employees/{employeeID}",
+      to: "lang/{lang}/employees/{employeeID}",
       resources: [],
       group: {
         documentID: "lang",

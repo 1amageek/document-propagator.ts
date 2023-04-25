@@ -17,7 +17,7 @@
   },
   "main": "lib/src/index.js",
   "dependencies": {
-    "@1amageek/document-propagator": "file:../../",
+    "@1amageek/document-propagator": "file:../..",
     "@firebase/testing": "^0.20.11"
   },
   "devDependencies": {

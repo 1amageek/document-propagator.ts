@@ -2,10 +2,13 @@ import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, Do
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getTargetPath, encode, Data, getPath } from "./helper"
+import { DependencyResource, Field, getTargetPath, encode, Data, getParams, getPath } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
 
 type DependencyTarget = {
+  from: string
+  to: string
+  documentID: string
   reference: CollectionReference
   field: Field
 }
@@ -37,14 +40,14 @@ export class PropagateFunctionBuilder {
         const dependencyTargets: DependencyTarget[] = dependencyTargetResources.flatMap(target => {
           const paths = target.resource.split("/")
           const resource = paths.slice(0, paths.length - 1).join("/")
-          let targetPath = getTargetPath(context.params, triggerResource, resource)
           const group = target.group
           if (!group) {
-            return [{ reference: this.firestore.collection(targetPath), field: target.field }]
+            const targetPath = getTargetPath(context.params, triggerResource, resource)
+            return [{ reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }]
           }
           return group.values.map(value => {
-            targetPath = getPath(targetPath, { [group.documentID]: value })
-            return { reference: this.firestore.collection(targetPath), field: target.field }
+            const targetPath = getTargetPath({ ...context.params, [group.documentID]: value }, triggerResource, resource)
+            return { reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }
           })
         })
         if (change.before.exists) {
@@ -98,12 +101,15 @@ const onDelete = async (
 const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget[], reference: DocumentReference, documentData: any | null) => {
   const bulkWriter = firestore.bulkWriter()
   const tasks = dependencyTargets.map(async (target) => {
-    console.log("reference", reference.path)
     const _reference = firestore.doc(reference.path)
     const snapshot = await target.reference.where("__dependencies", "array-contains", _reference).get()
     return {
       snapshot: snapshot,
-      field: target.field
+      field: target.field,
+      from: target.from,
+      to: target.to,
+      documentID: target.documentID,
+      reference: target.reference
     }
   })
   const targets = await Promise.all(tasks)
@@ -137,23 +143,35 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
   }
   // If data does not exist, delete
   else {
+    const operations: any = {}
     for (const target of targets) {
       const documents = target.snapshot.docs
-      const field = target.field
+      const field = target.documentID
       for (const doc of documents) {
+        const params = getParams(doc.ref.path, target.to)
+        const path = getPath(target.from, params)
+        const ref = firestore.doc(path)
         const data = doc.data()
+        const id = reference.id
         const fieldData = data[field]
         if (Array.isArray(fieldData)) {
-          const index = fieldData.findIndex((data) => data.id === reference.id)
+          const index = fieldData.findIndex((data) => data === id)
           if (index !== -1) {
-            const newFieldData = [...fieldData]
-            newFieldData.slice(index, 1)
-            bulkWriter.update(doc.ref, {
-              [field]: newFieldData,
-            })
+            const updateDocumentData = fieldData.filter((data) => data !== id)
+            operations[ref.path] = {
+              [field]: updateDocumentData
+            }
+          }
+        } else {
+          operations[ref.path] = {
+            [field]: null
           }
         }
       }
+    }
+    for (const path of Object.keys(operations)) {
+      const ref = firestore.doc(path)
+      bulkWriter.update(ref, operations[path])
     }
   }
   return await bulkWriter.close()
