@@ -88,9 +88,11 @@ export const getPath = (resource: string, params: { [key: string]: string }) => 
   let path = resource
   for (const name of paramaterNames) {
     const pattarn = `{${name}}`
-    const reg = new RegExp(pattarn, 'g');
+    const reg = new RegExp(pattarn, 'g')
     const value = params[name]
-    path = path.replace(reg, value)
+    if (value !== undefined) {
+      path = path.replace(reg, value)
+    }
   }
   return path
 }
@@ -195,26 +197,6 @@ export const getPropagateTargets = (queries: JoinQuery[]): Target[] => {
       dependencies: dependencies,
       group: query.group ?? null
     } as Target]
-    // const group = query.group
-    // if (!group) {
-    //   return [{
-    //     resource: query.to,
-    //     dependencies: dependencies
-    //   } as Target]
-    // }
-    // return group.values.map(value => {
-    //   const resource = getPath(query.to, { [group.documentID]: value })
-    //   const _dependencies = dependencies.map(dependency => {
-    //     return {
-    //       field: dependency.field,
-    //       resource: getPath(dependency.resource, { [group.documentID]: value })
-    //     }
-    //   })
-    //   return {
-    //     resource: resource,
-    //     dependencies: _dependencies,
-    //   } as Target
-    // })
   })
     .filter(v => v.dependencies.length > 0)
 }
