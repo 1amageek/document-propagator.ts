@@ -1,17 +1,9 @@
 import { Firestore, Timestamp, DocumentReference } from "firebase-admin/firestore";
 import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
 import { Dependence } from "./Dependence";
-import { Context } from "./Interface";
+import { Context, Data, Field } from "./Interface";
 
 const WILDCARD_REGEX = new RegExp('{[^/{}]*}', 'g')
-
-export type CollectionReferenceResource = string
-
-export type DocumentReferencePath = string
-
-export type Field = string
-
-export type Data = { [key: string]: any }
 
 export type Target = {
   from: string
@@ -52,11 +44,11 @@ export type TargetResource = {
   resource: string
 }
 
-export const replaceDependencyData = async <Data>(
+export const replaceDependencyData = async (
   firestore: Firestore,
   context: Context,
   dependencyResources: JoinDependencyResource[],
-  data: DocumentData,
+  data: Data,
   callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
 ): Promise<[Dependence, { [x: string]: any }[]]> => {
   const _context = context.event

@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions/v1"
-import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, Data, PathGroup } from "./helper"
-import { Context } from "./Interface"
+import { RuntimeOptions, SUPPORTED_REGIONS, Change } from "firebase-functions/v1"
+import { DependencyResource, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, PathGroup } from "./helper"
+import { Context, Field, Data } from "./Interface"
 import { PropagateFunctionBuilder } from "./PropagateFunctionBuilder"
 import { JoinFunctionBuilder } from "./JoinFunctionBuilder"
 import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore"
@@ -35,13 +35,14 @@ export const resolve = (
     runtimeOptions?: RuntimeOptions
   } | null,
   queries: JoinQuery[] = [],
-  joinSnapshotHandler: ((context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
   joinCallback: ((context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
   propagateSnapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
   propagateCallback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
 ) => {
   return {
-    j: join(firestore, options, queries, joinSnapshotHandler, joinCallback),
+    j: join(firestore, options, queries, shouldRunFunction, dataHandler, joinCallback),
     p: propagate(firestore, options, queries, propagateSnapshotHandler, propagateCallback)
   }
 }
@@ -61,7 +62,8 @@ export const join = <Data extends { [key: string]: any }>(
     runtimeOptions?: RuntimeOptions
   } | null,
   queries: JoinQuery[] = [],
-  snapshotHandler: ((context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean) | null = null,
+  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
   callback: ((context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null
 ) => {
   const builder = new JoinFunctionBuilder(firestore)
@@ -71,7 +73,7 @@ export const join = <Data extends { [key: string]: any }>(
   const defaultCallback = (context: Context, snapshot: DocumentSnapshot<DocumentData>) => {
     return { ...snapshot.data(), id: snapshot.id } as any
   }
-  const _snapshotHandler = snapshotHandler ?? defaultSnapshotHandler
+  const _shouldRunFunction = shouldRunFunction ?? defaultSnapshotHandler
   const _callback = callback ?? defaultCallback
   const functionNames = queries.reduce<string[]>((prev, query) => {
     const collectionIDs = getCollectionIDs(query.from)
@@ -81,7 +83,7 @@ export const join = <Data extends { [key: string]: any }>(
   const documentFunctions: DocumentFunction[] = queries.map(query => {
     const collectionIDs = getCollectionIDs(query.from)
     const names = collectionIDs.map(id => compress(id, duplicateFunctionNames))
-    const onWrite = builder.build(options, query, _snapshotHandler, _callback)
+    const onWrite = builder.build(options, query, _shouldRunFunction, dataHandler, _callback)
     return { name: [...names, "on"], on: onWrite }
   })
   return convert(documentFunctions)

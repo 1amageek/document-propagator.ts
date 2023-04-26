@@ -1,9 +1,9 @@
 import { Firestore } from "firebase-admin/firestore"
 import * as functions from "firebase-functions"
-import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
+import { RuntimeOptions, SUPPORTED_REGIONS, Change } from "firebase-functions/v1"
 import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
 import { JoinDependencyResource, getTargetPath, replaceDependencyData, encode, JoinQuery, getPath } from "./helper"
-import { Context } from "./Interface"
+import { Context, Data } from "./Interface"
 import { v4 as uuidv4 } from 'uuid'
 
 export class JoinFunctionBuilder {
@@ -14,13 +14,14 @@ export class JoinFunctionBuilder {
     this.firestore = firestore
   }
 
-  build<Data>(
+  build(
     options: {
       regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
       runtimeOptions?: RuntimeOptions
     } | null,
     query: JoinQuery,
-    snapshotHandler: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+    shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+    dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
     callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
   ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
     let builder = options?.regions != null ? functions.region(...options.regions) : functions
@@ -38,12 +39,12 @@ export class JoinFunctionBuilder {
           const _context: Context = { event: context, targetPath, groupValue: null }
           if (change.before.exists) {
             if (change.after.exists) {
-              return onUpdate(this.firestore, _context, change.after, dependencies, snapshotHandler, callback)
+              return onUpdate(this.firestore, change, _context, change.after, dependencies, shouldRunFunction, dataHandler, callback)
             } else {
-              return onDelete(this.firestore, _context, change.before, snapshotHandler)
+              return onDelete(this.firestore, _context, change.before, shouldRunFunction)
             }
           } else {
-            return onCreate(this.firestore, _context, change.after, dependencies, snapshotHandler, callback)
+            return onCreate(this.firestore, change, _context, change.after, dependencies, shouldRunFunction, dataHandler, callback)
           }
         }
         const tasks = group.values.map(async (value) => {
@@ -56,12 +57,12 @@ export class JoinFunctionBuilder {
           const _context: Context = { event: context, targetPath, groupValue: value }
           if (change.before.exists) {
             if (change.after.exists) {
-              return onUpdate(this.firestore, _context, change.after, dependencies, snapshotHandler, callback)
+              return onUpdate(this.firestore, change, _context, change.after, dependencies, shouldRunFunction, dataHandler, callback)
             } else {
-              return onDelete(this.firestore, _context, change.before, snapshotHandler)
+              return onDelete(this.firestore, _context, change.before, shouldRunFunction)
             }
           } else {
-            return onCreate(this.firestore, _context, change.after, dependencies, snapshotHandler, callback)
+            return onCreate(this.firestore, change, _context, change.after, dependencies, shouldRunFunction, dataHandler, callback)
           }
         })
         return Promise.all(tasks)
@@ -69,19 +70,20 @@ export class JoinFunctionBuilder {
   }
 }
 
-const onCreate = async <Data>(
+const onCreate = async (
   firestore: Firestore,
+  change: Change<DocumentSnapshot>,
   context: Context,
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
-  snapshotHandler: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
   callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
 ) => {
-  if (!snapshotHandler(context ,snapshot)) {
+  if (!shouldRunFunction(context, snapshot)) {
     return
   }
-  const data = snapshot.data()!
-  const targetPath = context.targetPath
+  const data = await dataHandler(context, change)
   const [dependence, results] = await replaceDependencyData(firestore, context, dependencies, data, callback)
   const documentData = encode({
     ...data,
@@ -91,23 +93,26 @@ const onCreate = async <Data>(
     __dependencies: dependence.dependencies,
     __propageteID: uuidv4()
   })
+  const targetPath = context.targetPath
   return await firestore
     .doc(targetPath)
     .set(documentData, { merge: true })
 }
 
-const onUpdate = async <Data>(
+const onUpdate = async (
   firestore: Firestore,
+  change: Change<DocumentSnapshot>,
   context: Context,
   snapshot: DocumentSnapshot,
   dependencies: JoinDependencyResource[],
-  snapshotHandler: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
   callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
 ) => {
-  if (!snapshotHandler(context, snapshot)) {
+  if (!shouldRunFunction(context, snapshot)) {
     return
   }
-  const data = snapshot.data()!
+  const data = await dataHandler(context, change)
   const targetPath = context.targetPath
   const [dependence, results] = await replaceDependencyData(firestore, context, dependencies, data, callback)
   const documentData = encode({
@@ -126,9 +131,9 @@ const onDelete = async (
   firestore: Firestore,
   context: Context,
   snapshot: DocumentSnapshot,
-  snapshotHandler: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
+  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
 ) => {
-  if (!snapshotHandler(context, snapshot)) {
+  if (!shouldRunFunction(context, snapshot)) {
     return
   }
   const targetPath = context.targetPath
