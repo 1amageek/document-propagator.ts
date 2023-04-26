@@ -2,8 +2,9 @@ import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, Do
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, Field, getTargetPath, encode, Data, getParams, getPath } from "./helper"
+import { DependencyResource, getTargetPath, encode, getParams, getPath } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
+import { Field, Data } from "./Interface"
 
 type DependencyTarget = {
   from: string
