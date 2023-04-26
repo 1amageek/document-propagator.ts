@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Resolving Document dependencies in Cloud Firestore.",
   "contributors": [
     {
@@ -24,7 +24,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "firebase-admin": "^10.3.0",
+    "firebase-admin": "^11.7.0",
     "firebase-functions": "^4.3.1",
     "uuid": "^9.0.0"
   },
