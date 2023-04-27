@@ -122,7 +122,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       const documents = target.snapshot.docs
       const field = target.field
       for (const doc of documents) {
-        const data = doc.data()
+        const data = clean(doc.data())
         const fieldData = data[field]
         if (Array.isArray(fieldData)) {
           const index = fieldData.findIndex((data) => data.id === reference.id)
@@ -152,7 +152,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
         const params = getParams(doc.ref.path, target.to)
         const path = getPath(target.from, params)
         const ref = firestore.doc(path)
-        const data = doc.data()
+        const data = clean(doc.data())
         const id = reference.id
         const fieldData = data[field]
         if (Array.isArray(fieldData)) {
@@ -176,4 +176,27 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
     }
   }
   return await bulkWriter.close()
+}
+
+
+function clean(data: any) {
+  const _data = { ...data }
+  removeProperties(_data)
+  return _data
+}
+
+function removeProperties(data: any) {
+  if (data instanceof Object && !(data instanceof Function) && !(data instanceof DocumentReference)) {
+    for (const key in data) {
+      const value = data[key]
+      if (
+        key == "__dependencies" ||
+        key == "__UUID"
+      ) {
+        delete data[key]
+      } else {
+        removeProperties(value)
+      }
+    }
+  }
 }
