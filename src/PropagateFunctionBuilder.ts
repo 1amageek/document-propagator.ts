@@ -136,7 +136,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
             }
           }
         } else {
-          if (isChanged(data, updateDocumentData)) {
+          if (isChanged(fieldData, updateDocumentData)) {
             const updateDate = clean(updateDocumentData)
             bulkWriter.update(doc.ref, {
               [field]: updateDate,
@@ -184,30 +184,31 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
 }
 
 function isChanged(before: any, after: any) {
-  function clean(data: any) {
+  function _clean(data: any) {
     const _data = { ...data }
-    removeProperties(_data)
+    _removeProperties(_data)
     return _data
   }
-  function removeProperties(data: any) {
+  function _removeProperties(data: any) {
     if (data instanceof Object && !(data instanceof Function) && !(data instanceof DocumentReference)) {
       for (const key in data) {
         const value = data[key]
         if (
           key == "__dependencies" ||
           key == "__UUID" ||
+          key == "__propageteID" ||
           key == "createTime" ||
           key == "updateTime"
         ) {
           delete data[key]
         } else {
-          removeProperties(value)
+          _removeProperties(value)
         }
       }
     }
   }
-  const _before = clean(before)
-  const _after = clean(after)
+  const _before = _clean(before)
+  const _after = _clean(after)
   return JSON.stringify(_before) !== JSON.stringify(_after)
 }
 
@@ -223,7 +224,8 @@ function removeProperties(data: any) {
       const value = data[key]
       if (
         key == "__dependencies" ||
-        key == "__UUID"
+        key == "__UUID" ||
+        key == "__propageteID"
       ) {
         delete data[key]
       } else {

@@ -15,7 +15,8 @@ export const getDependency = async <Path extends string, Data>(
   const ref = firestore.doc(`${path}/${id}`)
   const snapshot = await ref.get()
   const data = callback(context, snapshot) ?? null
-  return [data, ref]
+  const newData = clean(data)
+  return [newData, ref]
 }
 
 export const getDependencies = async <Path extends string, Data>(
@@ -37,8 +38,13 @@ export const getDependencies = async <Path extends string, Data>(
   const snapshots = await Promise.all(tasks)
   const docs = snapshots
     .flatMap((snapshot) => {
-      if (snapshot.exists) {
-        return callback(context, snapshot) ?? null
+      if (snapshot.exists) {   
+        const data = callback(context, snapshot) ?? null
+        if (data) {
+          return clean(data)
+        } else {
+          return null
+        }
       }
       return null
     })
@@ -81,5 +87,29 @@ export class Dependence {
       this.dependencies.push(ref)
     })
     return data
+  }
+}
+
+
+function clean(data: any) {
+  const _data = { ...data }
+  removeProperties(_data)
+  return _data
+}
+
+function removeProperties(data: any) {
+  if (data instanceof Object && !(data instanceof Function) && !(data instanceof DocumentReference)) {
+    for (const key in data) {
+      const value = data[key]
+      if (
+        key == "__dependencies" ||
+        key == "__UUID" ||
+        key == "__propageteID"
+      ) {
+        delete data[key]
+      } else {
+        removeProperties(value)
+      }
+    }
   }
 }
