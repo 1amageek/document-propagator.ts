@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase-admin/app"
-import { getFirestore, DocumentReference } from "firebase-admin/firestore"
+import { getFirestore } from "firebase-admin/firestore"
 import * as propagator from "@1amageek/document-propagator"
 import { depedencyResource } from "@1amageek/document-propagator"
 
@@ -20,7 +20,7 @@ export const r = propagator.resolve(firestore,
       to: "lang/{lang}/companies/{companyID}",
       resources: [
         depedencyResource("placeID", "place", "/lang/{lang}/places"),
-        { documentID: "employeeIDs", field: "employees", resource: "/lang/{lang}/employees" }     
+        { documentID: "employeeIDs", field: "employees", resource: "/lang/{lang}/employees" }
       ],
       group: {
         documentID: "lang",
@@ -47,33 +47,10 @@ export const r = propagator.resolve(firestore,
     }
   ], () => {
     return true
-  }, null, (before, after) => {
-    const beforeData = clean(before.data())
-    const afterData = clean(after.data())
-    return !(JSON.stringify(beforeData) === JSON.stringify(afterData))
+  }, 
+  async (context, change) => {
+    return change.after.data()!
+  },
+   null, (before, after) => {
+    return true
   }, null)
-
-
-function clean(data: any) {
-  const _data = { ...data }
-  removeProperties(_data)
-  return _data
-}
-
-function removeProperties(data: any) {
-  if (data instanceof Object && !(data instanceof Function) && !(data instanceof DocumentReference)) {
-    for (const key in data) {
-      const value = data[key]
-      if (
-        key == "__dependencies" ||
-        key == "__UUID" ||
-        key == "createTime" ||
-        key == "updateTime"
-      ) {
-        delete data[key]
-      } else {
-        removeProperties(value)
-      }
-    }
-  }
-}
