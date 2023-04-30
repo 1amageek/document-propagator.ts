@@ -122,22 +122,27 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       const documents = target.snapshot.docs
       const field = target.field
       for (const doc of documents) {
-        const data = clean(doc.data())
+        const data = doc.data()
         const fieldData = data[field]
         if (Array.isArray(fieldData)) {
           const index = fieldData.findIndex((data) => data.id === reference.id)
           if (index !== -1) {
-            fieldData[index] = updateDocumentData
+            if (isChanged(fieldData[index], updateDocumentData)) {
+              fieldData[index] = clean(updateDocumentData)
+              bulkWriter.update(doc.ref, {
+                [field]: fieldData,
+                "__propageteID": propageteID
+              })
+            }
+          }
+        } else {
+          if (isChanged(data, updateDocumentData)) {
+            const updateDate = clean(updateDocumentData)
             bulkWriter.update(doc.ref, {
-              [field]: fieldData,
+              [field]: updateDate,
               "__propageteID": propageteID
             })
           }
-        } else {
-          bulkWriter.update(doc.ref, {
-            [field]: updateDocumentData,
-            "__propageteID": propageteID
-          })
         }
       }
     }
@@ -178,6 +183,33 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
   return await bulkWriter.close()
 }
 
+function isChanged(before: any, after: any) {
+  function clean(data: any) {
+    const _data = { ...data }
+    removeProperties(_data)
+    return _data
+  }
+  function removeProperties(data: any) {
+    if (data instanceof Object && !(data instanceof Function) && !(data instanceof DocumentReference)) {
+      for (const key in data) {
+        const value = data[key]
+        if (
+          key == "__dependencies" ||
+          key == "__UUID" ||
+          key == "createTime" ||
+          key == "updateTime"
+        ) {
+          delete data[key]
+        } else {
+          removeProperties(value)
+        }
+      }
+    }
+  }
+  const _before = clean(before)
+  const _after = clean(after)
+  return JSON.stringify(_before) !== JSON.stringify(_after)
+}
 
 function clean(data: any) {
   const _data = { ...data }
