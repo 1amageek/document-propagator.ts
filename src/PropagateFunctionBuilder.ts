@@ -1,4 +1,4 @@
-import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData, Timestamp } from "firebase-admin/firestore"
+import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData, Timestamp, GrpcStatus } from "firebase-admin/firestore"
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
@@ -181,6 +181,19 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       bulkWriter.update(ref, operations[path])
     }
   }
+  bulkWriter.onWriteError((error) => {
+    if (error.operationType === 'update') {
+      functions.logger.log('Ignoring error on update operation:', error);
+      return false;
+    }
+    if (error.code === GrpcStatus.UNAVAILABLE && error.failedAttempts < 5) {
+      return true;
+    } else {
+      functions.logger.error('Operation failed with error:', error);
+      return false;
+    }
+  });
+  
   return await bulkWriter.close()
 }
 
