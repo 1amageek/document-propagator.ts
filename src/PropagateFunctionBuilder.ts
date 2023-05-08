@@ -5,6 +5,7 @@ import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
 import { DependencyResource, getTargetPath, encode, getParams, getPath } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
 import { Field, Data } from "./Interface"
+import * as jsondiffpatch from "jsondiffpatch"
 
 type DependencyTarget = {
   from: string
@@ -209,7 +210,7 @@ function isChanged(before: any, after: any) {
   }
   const _before = _clean(before)
   const _after = _clean(after)
-  return JSON.stringify(_before) !== JSON.stringify(_after)
+  return jsondiffpatch.diff(_before, _after) !== undefined
 }
 
 function clean(data: any) {
