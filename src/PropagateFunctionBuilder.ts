@@ -1,4 +1,4 @@
-import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData } from "firebase-admin/firestore"
+import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData, Timestamp } from "firebase-admin/firestore"
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
@@ -216,6 +216,7 @@ function isChanged(before: any, after: any) {
 function clean(data: any) {
   const _data = { ...data }
   removeProperties(_data)
+  replaceTimestamp(_data)
   return _data
 }
 
@@ -232,6 +233,22 @@ function removeProperties(data: any) {
       } else {
         removeProperties(value)
       }
+    }
+  }
+}
+
+function replaceTimestamp(data: any) {
+  if (data instanceof Object && !(data instanceof Function) && !(data instanceof DocumentReference)) {
+    for (const key in data) {
+      const value = data[key]
+      if (value instanceof Timestamp) {
+        data[key] = value.toDate()
+      } else if (Array.isArray(value) && value.length === 2) {
+        if (value[0] instanceof Timestamp && value[1] instanceof Timestamp) {
+          data[key] = [value[0].toDate(), value[1].toDate()]
+        }
+      }
+      replaceTimestamp(value)
     }
   }
 }
