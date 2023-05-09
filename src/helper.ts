@@ -108,7 +108,7 @@ export const getParams = (path: string, format: string): { [key: string]: string
   return params;
 }
 
-const getPathFromResource = (params: { [key: string]: string }, resource: string) => {
+export const getPathFromResource = (params: { [key: string]: string }, resource: string) => {
   const paramaterNames = getDocumentIDs(resource)
   let path = resource
   for (const name of paramaterNames) {

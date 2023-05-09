@@ -2,7 +2,7 @@ import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, Do
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
-import { DependencyResource, getTargetPath, encode, getParams, getPath } from "./helper"
+import { DependencyResource, getPathFromResource, getTargetPath, encode, getParams, getPath } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
 import { Field, Data } from "./Interface"
 import * as jsondiffpatch from "jsondiffpatch"
@@ -48,7 +48,8 @@ export class PropagateFunctionBuilder {
             return [{ reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }]
           }
           return group.values.map(value => {
-            const targetPath = getTargetPath({ ...context.params, [group.documentID]: value }, triggerResource, resource)
+            const resourcePath = getTargetPath({ ...context.params }, triggerResource, resource)
+            const targetPath = getPathFromResource({ [group.documentID]: value }, resourcePath)
             return { reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }
           })
         })
@@ -102,7 +103,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
   const bulkWriter = firestore.bulkWriter()
   const uniqueTargets = dependencyTargets.filter((obj, index, self) =>
     index === self.findIndex((o) =>
-      o.field === obj.field && 
+      o.field === obj.field &&
       o.from === obj.from &&
       o.to === obj.to &&
       o.documentID === obj.documentID &&
