@@ -81,7 +81,6 @@ const onUpdate = async (
   const _data = callback(before, after)
   const data = encode(_data)
   const ref = after.ref
-  logger.log(`[Propagate][onUpdate]${ref.path}`)
   return await resolve(firestore, dependencyTargets, ref, data)
 }
 
@@ -90,7 +89,6 @@ const onDelete = async (
   dependencyTargets: DependencyTarget[],
   snapshot: DocumentSnapshot,
 ) => {
-  logger.log(`[Propagate][onDelete]${snapshot.ref.path}`)
   return await resolve(firestore, dependencyTargets, snapshot.ref, null)
 }
 
@@ -123,6 +121,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       const documents = target.snapshot.docs
       const field = target.field
       for (const doc of documents) {
+        logger.log(`[Propagate][onUpdate] from:${reference.path} to:${doc.ref.path}`)
         const data = doc.data()
         const fieldData = data[field]
         if (Array.isArray(fieldData)) {
@@ -155,6 +154,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       const documents = target.snapshot.docs
       const field = target.documentID
       for (const doc of documents) {
+        logger.log(`[Propagate][onDelete] from:${reference.path} to:${doc.ref.path}`)
         const params = getParams(doc.ref.path, target.to)
         const path = getPath(target.from, params)
         const ref = firestore.doc(path)
