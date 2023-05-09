@@ -100,7 +100,16 @@ const onDelete = async (
 */
 const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget[], reference: DocumentReference, documentData: any | null) => {
   const bulkWriter = firestore.bulkWriter()
-  const tasks = dependencyTargets.map(async (target) => {
+  const uniqueTargets = dependencyTargets.filter((obj, index, self) =>
+    index === self.findIndex((o) =>
+      o.field === obj.field && 
+      o.from === obj.from &&
+      o.to === obj.to &&
+      o.documentID === obj.documentID &&
+      o.reference.path === obj.reference.path
+    )
+  )
+  const tasks = uniqueTargets.map(async (target) => {
     const _reference = firestore.doc(reference.path)
     const snapshot = await target.reference.where("__dependencies", "array-contains", _reference).get()
     return {
@@ -193,7 +202,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       return false;
     }
   });
-  
+
   return await bulkWriter.close()
 }
 
