@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.10.10",
+  "version": "0.10.11",
   "description": "Resolving Document dependencies in Cloud Firestore.",
   "contributors": [
     {
