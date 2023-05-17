@@ -100,7 +100,6 @@ const onDelete = async (
 * @param documentData DocumentData
 */
 const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget[], reference: DocumentReference, documentData: any | null) => {
-  const bulkWriter = firestore.bulkWriter()
   const uniqueTargets = dependencyTargets.filter((obj, index, self) =>
     index === self.findIndex((o) =>
       o.field === obj.field &&
@@ -110,7 +109,7 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       o.reference.path === obj.reference.path
     )
   )
-  const tasks = uniqueTargets.map(async (target) => {
+  const getData = async (target: DependencyTarget) => {
     const _reference = firestore.doc(reference.path)
     const snapshot = await target.reference.where("__dependencies", "array-contains", _reference).get()
     return {
@@ -121,46 +120,50 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
       documentID: target.documentID,
       reference: target.reference
     }
-  })
-  const targets = await Promise.all(tasks)
-  // If data exists, update it.
+  }
+
   if (documentData) {
     const propageteID = documentData["__propageteID"] ?? uuidv4()
     const updateDocumentData = { ...documentData, id: reference.id }
-    for (const target of targets) {
+
+    for (const uniqueTarget of uniqueTargets) {
+      const target = await getData(uniqueTarget)
       const documents = target.snapshot.docs
       const field = target.field
       for (const doc of documents) {
         logger.log(`[Propagate][onUpdate] from:${reference.path} to:${doc.ref.path}`)
-        const data = doc.data()
-        const fieldData = data[field]
-        if (Array.isArray(fieldData)) {
-          const index = fieldData.findIndex((data) => data.id === reference.id)
-          if (index !== -1) {
-            if (isChanged(fieldData[index], updateDocumentData)) {
-              fieldData[index] = clean(updateDocumentData)
-              bulkWriter.update(doc.ref, {
-                [field]: fieldData,
-                "__propageteID": propageteID
-              })
+        firestore.runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(doc.ref)
+          const data = snapshot.data()
+          if (data) {
+            const fieldData = data[field]
+            if (Array.isArray(fieldData)) {
+              const index = fieldData.findIndex((data) => data.id === reference.id)
+              if (index !== -1) {
+                if (isChanged(fieldData[index], updateDocumentData)) {
+                  fieldData[index] = clean(updateDocumentData)
+                  transaction.update(doc.ref, {
+                    [field]: fieldData,
+                    "__propageteID": propageteID
+                  })
+                }
+              }
+            } else {
+              if (isChanged(fieldData, updateDocumentData)) {
+                const updateDate = clean(updateDocumentData)
+                transaction.update(doc.ref, {
+                  [field]: updateDate,
+                  "__propageteID": propageteID
+                })
+              }
             }
           }
-        } else {
-          if (isChanged(fieldData, updateDocumentData)) {
-            const updateDate = clean(updateDocumentData)
-            bulkWriter.update(doc.ref, {
-              [field]: updateDate,
-              "__propageteID": propageteID
-            })
-          }
-        }
+        })
       }
     }
-  }
-  // If data does not exist, delete
-  else {
-    const operations: any = {}
-    for (const target of targets) {
+  } else {
+    for (const uniqueTarget of uniqueTargets) {
+      const target = await getData(uniqueTarget)
       const documents = target.snapshot.docs
       const field = target.documentID
       for (const doc of documents) {
@@ -168,43 +171,26 @@ const resolve = async (firestore: Firestore, dependencyTargets: DependencyTarget
         const params = getParams(doc.ref.path, target.to)
         const path = getPath(target.from, params)
         const ref = firestore.doc(path)
-        const data = clean(doc.data())
-        const id = reference.id
-        const fieldData = data[field]
-        if (Array.isArray(fieldData)) {
-          const index = fieldData.findIndex((data) => data === id)
-          if (index !== -1) {
-            const updateDocumentData = fieldData.filter((data) => data !== id)
-            operations[ref.path] = {
-              [field]: updateDocumentData
+        firestore.runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(ref)
+          if (snapshot.exists) {
+            const data = clean(doc.data())
+            const id = reference.id
+            const fieldData = data[field]
+            if (Array.isArray(fieldData)) {
+              const index = fieldData.findIndex((data) => data === id)
+              if (index !== -1) {
+                const updateDocumentData = fieldData.filter((data) => data !== id)
+                transaction.update(ref, { [field]: updateDocumentData })
+              }
+            } else {
+              transaction.update(ref, { [field]: null })
             }
           }
-        } else {
-          operations[ref.path] = {
-            [field]: null
-          }
-        }
+        })
       }
     }
-    for (const path of Object.keys(operations)) {
-      const ref = firestore.doc(path)
-      bulkWriter.update(ref, operations[path])
-    }
   }
-  bulkWriter.onWriteError((error) => {
-    if (error.operationType === 'update') {
-      functions.logger.log('Ignoring error on update operation:', error);
-      return false;
-    }
-    if (error.code === GrpcStatus.UNAVAILABLE && error.failedAttempts < 5) {
-      return true;
-    } else {
-      functions.logger.error('Operation failed with error:', error);
-      return false;
-    }
-  });
-
-  return await bulkWriter.close()
 }
 
 function isChanged(before: any, after: any) {
