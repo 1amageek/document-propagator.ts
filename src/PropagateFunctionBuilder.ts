@@ -1,4 +1,4 @@
-import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData, Timestamp, GrpcStatus } from "firebase-admin/firestore"
+import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData, Timestamp } from "firebase-admin/firestore"
 import * as functions from "firebase-functions/v1"
 import { logger } from "firebase-functions/v2"
 import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
