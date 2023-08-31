@@ -2,12 +2,12 @@ import { Firestore } from "firebase-admin/firestore"
 import { DocumentReference, DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
 import { Context } from "./Interface"
 
-export const getDependency = async <Path extends string, Data>(
+export const getDependency = async <Document extends string, Data>(
   firestore: Firestore,
-  path: Path,
+  path: Document,
   id: string | null,
-  context: Context,
-  callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
+  context: Context<Document>,
+  callback: (context: Context<Document>, snapshot: DocumentSnapshot<DocumentData>) => Data
 ): Promise<[any | null, DocumentReference | null]> => {
   if (!id) {
     return [null, null]
@@ -19,12 +19,12 @@ export const getDependency = async <Path extends string, Data>(
   return [newData, ref]
 }
 
-export const getDependencies = async <Path extends string, Data>(
+export const getDependencies = async <Document extends string, Data>(
   firestore: Firestore,
-  path: Path,
+  path: Document,
   IDs: string[],
-  context: Context,
-  callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
+  context: Context<Document>,
+  callback: (context: Context<Document>, snapshot: DocumentSnapshot<DocumentData>) => Data
 ): Promise<[any[], DocumentReference[]]> => {
   if (IDs.length === 0) {
     return [[], []]
@@ -63,11 +63,11 @@ export class Dependence {
     this.dependencies = dependencies
   }
 
-  async setDependency<Path extends string, Data>(
-    path: Path,
+  async setDependency<Document extends string, Data>(
+    path: Document,
     id: string | null,
-    context: Context,
-    callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
+    context: Context<Document>,
+    callback: (context: Context<Document>, snapshot: DocumentSnapshot<DocumentData>) => Data
   ) {
     const [data, ref] = await getDependency(this.firestore, path, id, context, callback)
     if (ref) {
@@ -76,11 +76,11 @@ export class Dependence {
     return data
   }
 
-  async setDependencies<Path extends string, Data>(
-    path: Path,
+  async setDependencies<Document extends string, Data>(
+    path: Document,
     IDs: string[],
-    context: Context,
-    callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
+    context: Context<Document>,
+    callback: (context: Context<Document>, snapshot: DocumentSnapshot<DocumentData>) => Data
     ) {
     const [data, refs] = await getDependencies(this.firestore, path, IDs, context, callback)
     refs.forEach((ref) => {

@@ -1,10 +1,10 @@
-import * as functions from "firebase-functions/v1"
-import { RuntimeOptions, SUPPORTED_REGIONS, Change } from "firebase-functions/v1"
+import { CloudFunction, Change, ParamsOf } from "firebase-functions/v2"
+import { DocumentOptions, FirestoreEvent, DocumentSnapshot } from "firebase-functions/v2/firestore"
 import { DependencyResource, getCollectionIDs, getPropagateTargets, groupBy, JoinDependencyResource, JoinQuery, PathGroup } from "./helper"
 import { Context, Field, Data } from "./Interface"
 import { PropagateFunctionBuilder } from "./PropagateFunctionBuilder"
 import { JoinFunctionBuilder } from "./JoinFunctionBuilder"
-import { Firestore, DocumentSnapshot, DocumentData } from "firebase-admin/firestore"
+import { Firestore } from "firebase-admin/firestore"
 
 
 /**
@@ -28,18 +28,15 @@ export const depedencyResource = (documentID: string, field: Field, resource: st
   return { documentID, field, resource }
 }
 
-export const resolve = (
+export const resolve = <Document extends string>(
   firestore: Firestore,
-  options: {
-    regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-    runtimeOptions?: RuntimeOptions
-  } | null,
+  options: Partial<DocumentOptions> | null,
   queries: JoinQuery[] = [],
-  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
-  dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
-  joinCallback: ((context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
-  propagateSnapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
-  propagateCallback: ((snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null,
+  shouldRunFunction: (context: Context<Document>, snapshot: DocumentSnapshot) => boolean,
+  dataHandler: (context: Context<Document>, change: Change<DocumentSnapshot>) => Promise<Data>,
+  joinCallback: ((context: Context<Document>, snapshot: DocumentSnapshot) => Data) | null = null,
+  propagateSnapshotHandler: ((before: DocumentSnapshot, after: DocumentSnapshot) => boolean) | null = null,
+  propagateCallback: ((snapshot: DocumentSnapshot) => Data) | null = null,
 ) => {
   return {
     j: join(firestore, options, queries, shouldRunFunction, dataHandler, joinCallback),
@@ -55,22 +52,19 @@ export const resolve = (
  * @param callback If you need to process the acquired data, you can change it here.
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export const join = <Data extends { [key: string]: any }>(
+export const join = <Document extends string>(
   firestore: Firestore,
-  options: {
-    regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-    runtimeOptions?: RuntimeOptions
-  } | null,
+  options: Partial<DocumentOptions> | null,
   queries: JoinQuery[] = [],
-  shouldRunFunction: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => boolean,
-  dataHandler: (context: Context, change: Change<DocumentSnapshot>) => Promise<Data>,
-  callback: ((context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data) | null = null
+  shouldRunFunction: (context: Context<Document>, snapshot: DocumentSnapshot) => boolean,
+  dataHandler: (context: Context<Document>, change: Change<DocumentSnapshot>) => Promise<Data>,
+  callback: ((context: Context<Document>, snapshot: DocumentSnapshot) => Data) | null = null
 ) => {
   const builder = new JoinFunctionBuilder(firestore)
-  const defaultSnapshotHandler = (context: Context, snapshot: DocumentSnapshot<DocumentData>) => {
+  const defaultSnapshotHandler = (context: Context<Document>, snapshot: DocumentSnapshot) => {
     return true
   }
-  const defaultCallback = (context: Context, snapshot: DocumentSnapshot<DocumentData>) => {
+  const defaultCallback = (context: Context<Document>, snapshot: DocumentSnapshot) => {
     return { ...snapshot.data(), id: snapshot.id } as any
   }
   const _shouldRunFunction = shouldRunFunction ?? defaultSnapshotHandler
@@ -80,7 +74,7 @@ export const join = <Data extends { [key: string]: any }>(
     return prev.concat(collectionIDs)
   }, [])
   const duplicateFunctionNames = functionNames.filter((x, i, arr) => arr.includes(x, i + 1))
-  const documentFunctions: DocumentFunction[] = queries.map(query => {
+  const documentFunctions: DocumentFunction<Document>[] = queries.map(query => {
     const collectionIDs = getCollectionIDs(query.from)
     const names = collectionIDs.map(id => compress(id, duplicateFunctionNames))
     const onWrite = builder.build(options, query, _shouldRunFunction, dataHandler, _callback)
@@ -94,15 +88,12 @@ export const join = <Data extends { [key: string]: any }>(
  * @param targets 
  * @returns Returns the FunctionBuilder to be deployed.
  */
-export const propagate = (
+export const propagate = <Document extends string>(
   firestore: Firestore,
-  options: {
-    regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-    runtimeOptions?: RuntimeOptions
-  } | null,
+  options: Partial<DocumentOptions> | null,
   queries: JoinQuery[] = [],
-  snapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
-  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => Data) | null = null
+  snapshotHandler: ((before: DocumentSnapshot, after: DocumentSnapshot) => boolean) | null = null,
+  callback: ((before: DocumentSnapshot, after: DocumentSnapshot) => Data) | null = null
 ) => {
   const targets = getPropagateTargets(queries)
   const resources = targets.flatMap(target => {
@@ -110,7 +101,7 @@ export const propagate = (
       return { from: target.from, to: target.to, documentID: dependency.documentID, field: dependency.field, depedencyResource: dependency.resource, group: target.group }
     })
   })
-  const defaultCallback = (before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => {
+  const defaultCallback = (before: DocumentSnapshot, after: DocumentSnapshot) => {
     return { ...after.data(), id: after.id } as any
   }
   const _callback = callback ?? defaultCallback
@@ -121,7 +112,7 @@ export const propagate = (
     return prev.concat(collectionIDs)
   }, [])
   const duplicateFunctionNames = functionNames.filter((x, i, arr) => arr.includes(x, i + 1))
-  const documentFunctions: DocumentFunction[] = Object.keys(dependencies).map(triggerResource => {
+  const documentFunctions: DocumentFunction<Document>[] = Object.keys(dependencies).map(triggerResource => {
     const collectionIDs = getCollectionIDs(triggerResource)
     const names = collectionIDs.map(id => compress(id, duplicateFunctionNames))
     const depedencyResources: DependencyResource[] = dependencies[triggerResource]!.map(v => {
@@ -151,12 +142,12 @@ const compress = (name: string, list: string[]) => {
   }
 }
 
-type DocumentFunction = {
+type DocumentFunction<Document extends string> = {
   name: string[]
-  on: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>
+  on: CloudFunction<FirestoreEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>>
 }
 
-const convert = (arr: DocumentFunction[]): { [key: string]: any } => {
+const convert = <Document extends string>(arr: DocumentFunction<Document>[]): { [key: string]: any } => {
   const result: any = {};
   for (const subArr of arr) {
     let current: any = result;

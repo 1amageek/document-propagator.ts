@@ -2,6 +2,7 @@ import { Firestore, Timestamp, DocumentReference } from "firebase-admin/firestor
 import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore"
 import { Dependence } from "./Dependence";
 import { Context, Data, Field } from "./Interface";
+import { ParamsOf } from "firebase-functions/v2";
 
 const WILDCARD_REGEX = new RegExp('{[^/{}]*}', 'g')
 
@@ -44,12 +45,12 @@ export type TargetResource = {
   resource: string
 }
 
-export const replaceDependencyData = async (
+export const replaceDependencyData = async <Document extends string>(
   firestore: Firestore,
-  context: Context,
+  context: Context<Document>,
   dependencyResources: JoinDependencyResource[],
   data: Data,
-  callback: (context: Context, snapshot: DocumentSnapshot<DocumentData>) => Data
+  callback: (context: Context<Document>, snapshot: DocumentSnapshot<DocumentData>) => Data
 ): Promise<[Dependence, { [x: string]: any }[]]> => {
   const _context = context.event
   const dependence = new Dependence(firestore)
@@ -59,12 +60,12 @@ export const replaceDependencyData = async (
       return { [dependencyResource.field]: null }
     }
     if (isString(value)) {
-      const path = getPathFromResource(_context.params, dependencyResource.resource)
+      const path = getPathFromResource(_context.params, dependencyResource.resource) as Document
       const dependencyData = await dependence.setDependency(path, value, context, callback)
       return { [dependencyResource.field]: dependencyData }
     }
     if (isStringArray(value)) {
-      const path = getPathFromResource(_context.params, dependencyResource.resource)
+      const path = getPathFromResource(_context.params, dependencyResource.resource) as Document
       const dependenciesData = await dependence.setDependencies(path, value, context, callback)
       return { [dependencyResource.field]: dependenciesData }
     }
@@ -120,13 +121,13 @@ export const getPathFromResource = (params: { [key: string]: string }, resource:
   return path
 }
 
-export const getTargetPath = (params: { [key: string]: string }, triggerResource: string, targetResource: string) => {
+export const getTargetPath = <Document extends string>(params: ParamsOf<Document>, triggerResource: string, targetResource: string) => {
   const parameterNames = getDocumentIDs(triggerResource)
   let targetPath = targetResource
   for (const name of parameterNames) {
     const pattern = `{${name}}`
     const reg = new RegExp(pattern, 'g');
-    const value = params[name]
+    const value = (params as Record<string, string>)[name]
     targetPath = targetPath.replace(reg, value)
   }
   return targetPath

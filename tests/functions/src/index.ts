@@ -13,7 +13,7 @@ if (process.env.FUNCTIONS_EMULATOR) {
 }
 
 export const r = propagator.resolve(firestore,
-  { regions: ["asia-northeast1"] },
+  { region: "asia-northeast1" },
   [
     {
       from: "/companies/{companyID}",
@@ -47,10 +47,10 @@ export const r = propagator.resolve(firestore,
     }
   ], () => {
     return true
-  }, 
+  },
   async (context, change) => {
     return change.after.data()!
   },
-   null, (before, after) => {
+  null, (before, after) => {
     return true
   }, null)

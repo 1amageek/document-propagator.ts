@@ -1,7 +1,6 @@
-import { Firestore, DocumentSnapshot, DocumentReference, CollectionReference, DocumentData, Timestamp } from "firebase-admin/firestore"
-import * as functions from "firebase-functions/v1"
-import { logger } from "firebase-functions/v2"
-import { RuntimeOptions, SUPPORTED_REGIONS } from "firebase-functions/v1"
+import { Firestore, CollectionReference, DocumentReference, Timestamp } from "firebase-admin/firestore"
+import { CloudFunction, ParamsOf, logger } from "firebase-functions/v2"
+import { onDocumentWritten, DocumentOptions, Change, FirestoreEvent, DocumentSnapshot } from "firebase-functions/v2/firestore"
 import { DependencyResource, getPathFromResource, getTargetPath, encode, getParams, getPath } from "./helper"
 import { v4 as uuidv4 } from 'uuid'
 import { Field, Data } from "./Interface"
@@ -23,45 +22,40 @@ export class PropagateFunctionBuilder {
     this.firestore = firestore
   }
 
-  build(
-    options: {
-      regions: Array<typeof SUPPORTED_REGIONS[number] | string> | null,
-      runtimeOptions?: RuntimeOptions
-    } | null,
-    triggerResource: string,
+  build<Document extends string>(
+    options: Partial<DocumentOptions> | null,
+    triggerResource: Document,
     dependencyTargetResources: DependencyResource[],
-    snapshotHandler: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
-    callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => Data),
-  ): functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>> {
-    let builder = options?.regions != null ? functions.region(...options.regions) : functions
-    builder = !!options?.runtimeOptions ? builder.runWith(options.runtimeOptions) : builder
-    return builder
-      .firestore
-      .document(triggerResource)
-      .onWrite((change, context) => {
-        const dependencyTargets: DependencyTarget[] = dependencyTargetResources.flatMap(target => {
-          const paths = target.resource.split("/")
-          const resource = paths.slice(0, paths.length - 1).join("/")
-          const group = target.group
-          if (!group) {
-            const targetPath = getTargetPath(context.params, triggerResource, resource)
-            return [{ reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }]
-          }
-          return group.values.map(value => {
-            const resourcePath = getTargetPath({ ...context.params }, triggerResource, resource)
-            const targetPath = getPathFromResource({ [group.documentID]: value }, resourcePath)
-            return { reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }
-          })
-        })
-        if (change.before.exists) {
-          if (change.after.exists) {
-            return onUpdate(this.firestore, dependencyTargets, change.before, change.after, snapshotHandler, callback)
-          } else {
-            return onDelete(this.firestore, dependencyTargets, change.before)
-          }
+    snapshotHandler: ((before: DocumentSnapshot, after: DocumentSnapshot) => boolean) | null = null,
+    callback: ((before: DocumentSnapshot, after: DocumentSnapshot) => Data),
+  ): CloudFunction<FirestoreEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>> {
+    const _options: DocumentOptions<Document> = { ...options, document: triggerResource }
+    return onDocumentWritten<Document>(_options, (event) => {
+      const params = event.params
+      const change = event.data!
+      const dependencyTargets: DependencyTarget[] = dependencyTargetResources.flatMap(target => {
+        const paths = target.resource.split("/")
+        const resource = paths.slice(0, paths.length - 1).join("/")
+        const group = target.group
+        if (!group) {
+          const targetPath = getTargetPath(params, triggerResource, resource)
+          return [{ reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }]
         }
-        return null
+        return group.values.map(value => {
+          const resourcePath = getTargetPath({ ...params }, triggerResource, resource)
+          const targetPath = getPathFromResource({ [group.documentID]: value }, resourcePath)
+          return { reference: this.firestore.collection(targetPath), field: target.field, from: target.from, to: target.to, documentID: target.documentID }
+        })
       })
+      if (change.before.exists) {
+        if (change.after.exists) {
+          return onUpdate(this.firestore, dependencyTargets, change.before, change.after, snapshotHandler, callback)
+        } else {
+          return onDelete(this.firestore, dependencyTargets, change.before)
+        }
+      }
+      return null
+    })
   }
 }
 
@@ -70,8 +64,8 @@ const onUpdate = async (
   dependencyTargets: DependencyTarget[],
   before: DocumentSnapshot,
   after: DocumentSnapshot,
-  hander: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => boolean) | null = null,
-  callback: ((before: DocumentSnapshot<DocumentData>, after: DocumentSnapshot<DocumentData>) => Data)
+  hander: ((before: DocumentSnapshot, after: DocumentSnapshot) => boolean) | null = null,
+  callback: ((before: DocumentSnapshot, after: DocumentSnapshot) => Data)
 ) => {
   if (hander !== null) {
     const execute = hander(before, after)

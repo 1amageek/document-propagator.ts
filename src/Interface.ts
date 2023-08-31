@@ -1,7 +1,8 @@
-import { EventContext } from "firebase-functions/v1";
+import { ParamsOf } from "firebase-functions/v2";
+import { FirestoreEvent, Change, DocumentSnapshot } from "firebase-functions/v2/firestore";
 
-export type Context = {
-  event: EventContext,
+export type Context<Document extends string> = {
+  event: FirestoreEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>,
   targetPath: string,
   groupValue: string | null
 }
