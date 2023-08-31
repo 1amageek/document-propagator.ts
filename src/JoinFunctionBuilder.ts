@@ -30,7 +30,7 @@ export class JoinFunctionBuilder {
         const targetResource = query.to
         const dependencies = query.resources
         const targetPath = getTargetPath(params, triggerResource, targetResource)
-        const _context: Context<Document> = { event: event, targetPath, groupValue: null }
+        const _context: Context<Document> = { event: event, triggerResource: triggerResource, targetPath, groupValue: null }
         if (change.before.exists) {
           if (change.after.exists) {
             return onUpdate(this.firestore, change, _context, change.after, dependencies, shouldRunFunction, dataHandler, callback)
@@ -48,7 +48,7 @@ export class JoinFunctionBuilder {
         })
         const path = getTargetPath<Document>(params, triggerResource, query.to)
         const targetPath = getPath(path, { [group.documentID]: value })
-        const _context: Context<Document> = { event: event, targetPath, groupValue: value }
+        const _context: Context<Document> = { event: event, triggerResource: triggerResource,  targetPath, groupValue: value }
         if (change?.before.exists) {
           if (change.after.exists) {
             return onUpdate(this.firestore, change, _context, change.after, dependencies, shouldRunFunction, dataHandler, callback)

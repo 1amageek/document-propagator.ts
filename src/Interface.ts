@@ -3,6 +3,7 @@ import { FirestoreEvent, Change, DocumentSnapshot } from "firebase-functions/v2/
 
 export type Context<Document extends string> = {
   event: FirestoreEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>,
+  triggerResource: string,
   targetPath: string,
   groupValue: string | null
 }
