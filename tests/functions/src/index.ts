@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase-admin/app"
 import { getFirestore } from "firebase-admin/firestore"
 import * as propagator from "@1amageek/document-propagator"
-import { depedencyResource } from "@1amageek/document-propagator"
+import { dependencyResource } from "@1amageek/document-propagator"
 
 const app = initializeApp()
 const firestore = getFirestore(app)
@@ -19,7 +19,7 @@ export const r = propagator.resolve(firestore,
       from: "/companies/{companyID}",
       to: "lang/{lang}/companies/{companyID}",
       resources: [
-        depedencyResource("placeID", "place", "/lang/{lang}/places"),
+        dependencyResource("placeID", "place", "/lang/{lang}/places"),
         { documentID: "employeeIDs", field: "employees", resource: "/lang/{lang}/employees" }
       ],
       group: {

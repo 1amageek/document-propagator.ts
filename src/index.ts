@@ -24,7 +24,7 @@ export const joinQuery = (from: string, to: string, resources: JoinDependencyRes
  * @param field Field name to join to
  * @param resource Path of CollectionReference with wildcards "/users/{userID}"
  */
-export const depedencyResource = (documentID: string, field: Field, resource: string) => {
+export const dependencyResource = (documentID: string, field: Field, resource: string) => {
   return { documentID, field, resource }
 }
 
